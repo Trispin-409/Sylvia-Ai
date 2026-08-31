@@ -49,7 +49,6 @@ class SylviaApiService {
     const lower = userMessage.toLowerCase();
     const workspaceIntent = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
     if (!workspaceIntent) return userMessage;
-
     return [
       'WORKSPACE OPERATION REQUEST.',
       'Use the real connected Google Workspace tools through the Workspace Specialist.',
@@ -295,6 +294,8 @@ class SylviaApiService {
       if (originalName.includes('gmail')) actionType = originalName.includes('send') ? 'GMAIL_SEND' : 'GMAIL_DRAFT';
       else if (originalName.includes('calendar') || originalName.includes('schedule')) actionType = 'CALENDAR_CREATE';
       const originalArgs = original.args || {};
+      const contextId = result.contextId ? String(result.contextId) : this.currentContextId || undefined;
+      const taskId = result.id ? String(result.id) : this.currentTaskId || undefined;
       approvalRequest = {
         id: `approval_${confirmationCall.id || Date.now()}`,
         actionType,
@@ -311,7 +312,8 @@ class SylviaApiService {
         confirmationName: confirmationCall.name,
         originalFunctionCallId: original.id,
         confirmationPayload: confirmation.payload && typeof confirmation.payload === 'object' ? confirmation.payload : undefined,
-        taskId: result.id ? String(result.id) : this.currentTaskId || undefined,
+        contextId,
+        taskId,
         createdAt: new Date().toISOString(),
       };
     }
@@ -320,7 +322,7 @@ class SylviaApiService {
     return {
       reply: replyText,
       specialist: specialist.charAt(0).toUpperCase() + specialist.slice(1),
-      contextId: result.contextId,
+      contextId: result.contextId ? String(result.contextId) : this.currentContextId || undefined,
       taskId: result.id ? String(result.id) : this.currentTaskId || undefined,
       toolExecutions,
       approvalRequest,
