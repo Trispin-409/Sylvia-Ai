@@ -2,6 +2,10 @@ import {
   BackendHealth,
   AgentCard,
   ApprovalRequest,
+  ApprovalResult,
+  CalendarEvent,
+  GmailDraftResult,
+  GmailMessage,
   ToolExecution,
 } from '../types';
 
@@ -9,17 +13,13 @@ export interface ParsedADKResponse {
   reply: string;
   specialist: string;
   contextId?: string;
+  taskId?: string;
   toolExecutions: ToolExecution[];
   approvalRequest?: ApprovalRequest;
+  gmailMessages: GmailMessage[];
+  calendarEvents: CalendarEvent[];
+  workspaceResult?: Record<string, unknown>;
   rawAdkResult?: unknown;
-}
-
-export interface ApprovalResult {
-  success: boolean;
-  reply: string;
-  toolExecutions: ToolExecution[];
-  rawAdkResult?: unknown;
-  error?: string;
 }
 
 const DEFAULT_LIVE_BACKEND = 'https://sylvia-agent-516232832461.africa-south1.run.app';
@@ -33,56 +33,73 @@ class SylviaApiService {
     this.backendUrl = import.meta.env.VITE_SYLVIA_API_URL || DEFAULT_LIVE_BACKEND;
   }
 
-  public getBaseUrl(): string {
-    return this.backendUrl;
-  }
+  public getBaseUrl(): string { return this.backendUrl; }
 
   public setBaseUrl(url: string): void {
     this.backendUrl = url.trim().replace(/\/+$/, '') || DEFAULT_LIVE_BACKEND;
   }
 
-  public getContextId(): string | null {
-    return this.currentContextId;
-  }
-
-  public setContextId(id: string | null): void {
-    this.currentContextId = id;
-  }
-
-  public isDemoMode(): boolean {
-    return this.isDemoModeActive;
-  }
-
-  public setDemoMode(active: boolean): void {
-    this.isDemoModeActive = active;
-  }
+  public getContextId(): string | null { return this.currentContextId; }
+  public setContextId(id: string | null): void { this.currentContextId = id; }
+  public isDemoMode(): boolean { return this.isDemoModeActive; }
+  public setDemoMode(active: boolean): void { this.isDemoModeActive = active; }
 
   private buildAgentRequest(userMessage: string): string {
     const lower = userMessage.toLowerCase();
     const workspaceIntent =
       lower.includes('gmail') || lower.includes('email') || lower.includes('inbox') ||
       lower.includes('calendar') || lower.includes('meeting') || lower.includes('schedule');
-
     if (!workspaceIntent) return userMessage;
 
     return [
       'WORKSPACE OPERATION REQUEST.',
-      'Route this request to the Workspace Specialist and use the connected Google Workspace tools when available.',
-      'Do not claim that Gmail or Calendar access is unavailable if the Workspace tools are connected.',
-      'For read requests, actually inspect the connected data and return the relevant records.',
-      'For write requests, prepare the action and stop at the human approval gate; never send or mutate without explicit approval.',
+      'Use the real connected Google Workspace tools through the Workspace Specialist.',
+      'Do not simulate or invent Gmail messages, calendar events, draft IDs, message IDs, thread IDs, recipients, or operation results.',
+      'For read requests, actually query the connected Workspace tool and return the records it provides.',
+      'For write requests, prepare the operation and request human approval through the ADK tool-confirmation mechanism.',
+      'After approval, only report an external write as successful when the actual tool function response confirms success with structured result data.',
       `USER REQUEST: ${userMessage}`,
     ].join('\n');
   }
 
-  public async checkHealth(): Promise<BackendHealth> {
-    const startTime = performance.now();
+  private async postA2A(payload: unknown): Promise<any> {
+    let proxyError: Error | null = null;
+    try {
+      const response = await fetch('/a2a/app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const text = await response.text();
+      const body = (() => { try { return JSON.parse(text); } catch { return null; } })();
+      if (!response.ok) throw new Error(body?.error?.message || `A2A proxy returned HTTP ${response.status}`);
+      if (!body) throw new Error('A2A proxy returned a non-JSON response.');
+      return body;
+    } catch (err) {
+      proxyError = err instanceof Error ? err : new Error(String(err));
+    }
 
     try {
-      const response = await fetch('/api/health', { method: 'GET', headers: { Accept: 'application/json' } });
-      const latencyMs = Math.round(performance.now() - startTime);
-      const data = await response.json().catch(() => null);
+      const response = await fetch(`${this.backendUrl}/a2a/app`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error?.message || `Google ADK backend returned HTTP ${response.status}`);
+      return body;
+    } catch (err) {
+      const directError = err instanceof Error ? err : new Error(String(err));
+      throw new Error(proxyError ? `${directError.message} (proxy: ${proxyError.message})` : directError.message);
+    }
+  }
 
+  public async checkHealth(): Promise<BackendHealth> {
+    const startTime = performance.now();
+    try {
+      const response = await fetch('/api/health', { method: 'GET', headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => null);
+      const latencyMs = Math.round(performance.now() - startTime);
       if (response.ok && data?.adkStatus === 'connected') {
         return {
           connected: true, status: 'ok', backendUrl: data.liveAdkBackend || this.backendUrl,
@@ -91,29 +108,27 @@ class SylviaApiService {
         };
       }
     } catch {
-      // Fall through to direct backend probe.
+      // Direct probe below.
     }
-
     try {
-      const directResponse = await fetch(`${this.backendUrl}/a2a/app`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 'health_check', method: 'message/send',
-          params: { message: { messageId: `health_${Date.now()}`, role: 'user', parts: [{ text: 'Respond with exactly: SYLVIA_HEALTH_OK' }] } },
-        }),
+      const response = await this.postA2A({
+        jsonrpc: '2.0', id: 'health_check', method: 'message/send',
+        params: { message: { messageId: `health_${Date.now()}`, role: 'user', parts: [{ text: 'Respond with exactly: SYLVIA_HEALTH_OK' }] } },
       });
       const latencyMs = Math.round(performance.now() - startTime);
-      const responseBody = await directResponse.json().catch(() => null);
-      const rpcConnected = directResponse.ok && !responseBody?.error && Boolean(responseBody?.result);
+      const connected = !response?.error && Boolean(response?.result);
       return {
-        connected: rpcConnected, status: rpcConnected ? 'ok' : 'degraded', backendUrl: this.backendUrl,
-        latencyMs, lastChecked: new Date().toISOString(), adkConnected: rpcConnected,
+        connected, status: connected ? 'ok' : 'degraded', backendUrl: this.backendUrl,
+        latencyMs, lastChecked: new Date().toISOString(), adkConnected: connected,
         a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live)', isDemoMode: false,
-        error: rpcConnected ? undefined : (responseBody?.error?.message || `ADK HTTP ${directResponse.status}`),
+        error: connected ? undefined : (response?.error?.message || 'ADK health probe failed'),
       };
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to reach ADK backend';
-      return { connected: false, status: 'offline', backendUrl: this.backendUrl, lastChecked: new Date().toISOString(), adkConnected: false, isDemoMode: false, error: errorMsg };
+      return {
+        connected: false, status: 'offline', backendUrl: this.backendUrl,
+        lastChecked: new Date().toISOString(), adkConnected: false, isDemoMode: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 
@@ -129,7 +144,7 @@ class SylviaApiService {
         { name: 'context_memory_health_check', description: 'Validate Firestore persistent context memory store' },
         { name: 'save_decision_dna_preference', description: 'Persist preference or rule to Decision DNA' },
         { name: 'save_context_memory', description: 'Store structured context memory item' },
-        { name: 'create_gmail_draft', description: 'Draft verified Gmail response with human-in-the-loop authorization' },
+        { name: 'create_gmail_draft', description: 'Create and verify a Gmail draft with human-in-the-loop authorization' },
         { name: 'schedule_calendar_event', description: 'Schedule or adjust Google Calendar event' },
         { name: 'start_or_update_mission', description: 'Deconstruct complex goals into actionable multi-step missions' },
       ],
@@ -137,140 +152,252 @@ class SylviaApiService {
   }
 
   public async sendA2AMessage(userMessage: string): Promise<ParsedADKResponse> {
-    const agentRequest = this.buildAgentRequest(userMessage);
     const payload = {
       jsonrpc: '2.0', id: Date.now(), method: 'message/send',
       params: {
         ...(this.currentContextId ? { contextId: this.currentContextId } : {}),
-        message: { messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`, role: 'user', parts: [{ text: agentRequest }] },
+        message: { messageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, role: 'user', parts: [{ text: this.buildAgentRequest(userMessage) }] },
       },
     };
+    const body = await this.postA2A(payload);
+    if (body?.error) throw new Error(body.error.message || `A2A error (${body.error.code})`);
+    return this.parseADKResponse(body);
+  }
 
-    let rawJson: any = null;
-    try {
-      const proxyRes = await fetch('/a2a/app', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
-      });
-      const responseText = await proxyRes.text();
-      try { rawJson = JSON.parse(responseText); } catch { rawJson = null; }
-      if (!proxyRes.ok && rawJson?.error) throw new Error(rawJson.error.message || `A2A proxy returned HTTP ${proxyRes.status}`);
-    } catch (proxyError) {
-      console.warn('[Sylvia] Same-origin A2A proxy failed; trying direct backend.', proxyError);
-    }
+  private parseGmailMessage(value: any): GmailMessage | null {
+    if (!value || typeof value !== 'object') return null;
+    const rawFrom = String(value.from || value.sender || '');
+    const match = rawFrom.match(/<([^>]+)>/);
+    const id = String(value.id || value.messageId || '').trim();
+    if (!id) return null;
+    const senderEmail = String(value.senderEmail || value.from_email || match?.[1] || '');
+    const sender = String(value.sender || (match ? rawFrom.replace(match[0], '').trim() : rawFrom) || senderEmail || 'Unknown sender');
+    return {
+      id,
+      threadId: value.thread_id != null ? String(value.thread_id) : value.threadId != null ? String(value.threadId) : undefined,
+      messageId: value.message_id != null ? String(value.message_id) : value.messageId != null ? String(value.messageId) : undefined,
+      sender, senderEmail,
+      subject: String(value.subject || '(No subject)'),
+      preview: String(value.snippet || value.preview || value.body || ''),
+      body: value.body ? String(value.body) : undefined,
+      date: String(value.date || value.internal_date || 'Unknown date'),
+      unread: Boolean(value.unread ?? (Array.isArray(value.labels) && value.labels.includes('UNREAD'))),
+      requiresReply: typeof value.requiresReply === 'boolean' ? value.requiresReply : typeof value.requires_reply === 'boolean' ? value.requires_reply : undefined,
+      labels: Array.isArray(value.labels) ? value.labels.map(String) : undefined,
+    };
+  }
 
-    if (!rawJson || rawJson.error) {
-      const directRes = await fetch(`${this.backendUrl}/a2a/app`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
-      });
-      if (!directRes.ok) {
-        const errorText = await directRes.text().catch(() => '');
-        throw new Error(`Google ADK Sylvia Backend returned HTTP ${directRes.status}: ${errorText}`);
+  private parseCalendarEvent(value: any): CalendarEvent | null {
+    if (!value || typeof value !== 'object') return null;
+    const id = String(value.id || value.event_id || '').trim();
+    if (!id) return null;
+    return {
+      id,
+      title: String(value.title || value.summary || '(Untitled event)'),
+      startTime: String(value.startTime || value.start || value.start_time || ''),
+      endTime: String(value.endTime || value.end || value.end_time || ''),
+      location: value.location ? String(value.location) : undefined,
+      calendarName: String(value.calendarName || value.calendar || 'Google Calendar'),
+      durationMinutes: Number(value.durationMinutes || value.duration_minutes || 0),
+      attendees: Array.isArray(value.attendees) ? value.attendees.map(String) : undefined,
+      period: value.period === 'tomorrow' || value.period === 'upcoming' ? value.period : 'today',
+    };
+  }
+
+  private extractFunctionData(result: any): Array<{ kind: 'call' | 'response'; id?: string; name?: string; data: any; metadata: any }> {
+    const output: Array<{ kind: 'call' | 'response'; id?: string; name?: string; data: any; metadata: any }> = [];
+    for (const item of Array.isArray(result?.history) ? result.history : []) {
+      for (const part of Array.isArray(item?.parts) ? item.parts : []) {
+        const data = part?.data;
+        if (!data || typeof data !== 'object') continue;
+        const metadata = part?.metadata || {};
+        const type = String(metadata.adk_type || data.adk_type || '');
+        if (type !== 'function_call' && type !== 'function_response') continue;
+        output.push({ kind: type === 'function_call' ? 'call' : 'response', id: data.id ? String(data.id) : undefined, name: data.name ? String(data.name) : undefined, data, metadata });
       }
-      rawJson = await directRes.json();
     }
-    if (rawJson.error) throw new Error(rawJson.error.message || `A2A Error (${rawJson.error.code})`);
-    return this.parseADKResponse(rawJson);
+    return output;
   }
 
   private parseADKResponse(adkJson: any): ParsedADKResponse {
-    const result = adkJson.result || {};
-    if (result.contextId) this.currentContextId = result.contextId;
-
+    const result = adkJson?.result || {};
+    if (result.contextId) this.currentContextId = String(result.contextId);
     let replyText = '';
-    if (result.artifacts?.length) {
-      const textPart = result.artifacts[0]?.parts?.find((p: any) => p.kind === 'text' || p.text);
-      if (textPart) replyText = textPart.text || textPart.content || '';
+    for (const artifact of Array.isArray(result.artifacts) ? result.artifacts : []) {
+      const textPart = Array.isArray(artifact?.parts) ? artifact.parts.find((p: any) => p?.kind === 'text' || typeof p?.text === 'string') : null;
+      if (textPart?.text) { replyText = String(textPart.text); break; }
     }
-    if (!replyText && Array.isArray(result.history)) {
-      for (let i = result.history.length - 1; i >= 0; i--) {
+    if (!replyText) {
+      for (let i = Array.isArray(result.history) ? result.history.length - 1 : -1; i >= 0; i--) {
         const item = result.history[i];
-        if (item.role === 'agent' || item.role === 'assistant' || item.role === 'model') {
-          const textPart = item.parts?.find((p: any) => (p.kind === 'text' || p.text) && !p.data);
-          if (textPart?.text || textPart?.content) { replyText = textPart.text || textPart.content; break; }
-        }
+        if (!['agent','assistant','model'].includes(item?.role)) continue;
+        const part = Array.isArray(item?.parts) ? item.parts.find((p: any) => (p?.kind === 'text' || typeof p?.text === 'string') && !p?.data) : null;
+        if (part?.text) { replyText = String(part.text); break; }
       }
     }
-    if (!replyText && result.message?.parts?.[0]?.text) replyText = result.message.parts[0].text;
-    if (!replyText) replyText = 'Task evaluated and synchronized with Google ADK Sylvia backend.';
+    if (!replyText) replyText = 'Sylvia completed the request through the Google ADK backend.';
+
+    const functionData = this.extractFunctionData(result);
+    const responseById = new Map<string, any>();
+    for (const item of functionData) if (item.kind === 'response' && item.id) responseById.set(item.id, item.data);
 
     const toolExecutions: ToolExecution[] = [];
-    let specialistName = 'Sylvia';
-    if (result.metadata?.adk_author) {
-      const author = String(result.metadata.adk_author);
-      specialistName = author.charAt(0).toUpperCase() + author.slice(1);
-    }
+    const gmailMessages: GmailMessage[] = [];
+    const calendarEvents: CalendarEvent[] = [];
+    let workspaceResult: Record<string, unknown> | undefined;
 
-    if (Array.isArray(result.history)) {
-      for (const item of result.history) {
-        if (!Array.isArray(item.parts)) continue;
-        for (const part of item.parts) {
-          if (part.metadata?.adk_type !== 'function_call' || !part.data) continue;
-          const toolName = String(part.data.name || 'adk_tool');
-          const args = part.data.args || {};
-          let toolCategory: ToolExecution['toolName'] = 'SPECIALIST';
-          if (toolName.includes('gmail') || toolName.includes('email')) toolCategory = 'GMAIL';
-          else if (toolName.includes('calendar') || toolName.includes('schedule')) toolCategory = 'CALENDAR';
-          else if (toolName.includes('mission') || toolName.includes('step')) toolCategory = 'MISSION';
-          else if (toolName.includes('memory') || toolName.includes('dna')) toolCategory = 'MEMORY';
-          toolExecutions.push({
-            id: `tool_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            toolName: toolCategory, action: toolName.replace(/_/g, ' ').toUpperCase(), status: 'completed',
-            result: JSON.stringify(args).slice(0, 100), details: args,
-          });
+    for (const item of functionData) {
+      if (item.kind !== 'call' || item.name === 'adk_request_confirmation') continue;
+      const response = item.id ? responseById.get(item.id) : undefined;
+      const responseBody = response?.response;
+      const toolName = item.name || 'adk_tool';
+      let category: ToolExecution['toolName'] = 'SPECIALIST';
+      if (toolName.includes('gmail') || toolName.includes('email')) category = 'GMAIL';
+      else if (toolName.includes('calendar') || toolName.includes('schedule')) category = 'CALENDAR';
+      else if (toolName.includes('mission') || toolName.includes('step')) category = 'MISSION';
+      else if (toolName.includes('memory') || toolName.includes('dna')) category = 'MEMORY';
+      const failed = Boolean(responseBody?.error) || Boolean(response?.error);
+      toolExecutions.push({
+        id: item.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        toolName: category,
+        action: toolName.replace(/_/g, ' ').toUpperCase(),
+        status: failed ? 'failed' : response ? 'completed' : 'running',
+        result: responseBody ? JSON.stringify(responseBody).slice(0, 700) : undefined,
+        details: responseBody && typeof responseBody === 'object' ? responseBody : item.data?.args,
+      });
+
+      if (category === 'GMAIL' && responseBody && typeof responseBody === 'object') {
+        workspaceResult = responseBody as Record<string, unknown>;
+        const rawMessages = Array.isArray(responseBody.messages) ? responseBody.messages : Array.isArray(responseBody.emails) ? responseBody.emails : [];
+        for (const raw of rawMessages) {
+          const parsed = this.parseGmailMessage(raw);
+          if (parsed) gmailMessages.push(parsed);
+        }
+      }
+      if (category === 'CALENDAR' && responseBody && typeof responseBody === 'object') {
+        workspaceResult = responseBody as Record<string, unknown>;
+        for (const raw of Array.isArray(responseBody.events) ? responseBody.events : []) {
+          const parsed = this.parseCalendarEvent(raw);
+          if (parsed) calendarEvents.push(parsed);
         }
       }
     }
 
     let approvalRequest: ApprovalRequest | undefined;
-    const toolConfirmations = result.metadata?.adk_actions?.requestedToolConfirmations;
-    if (toolConfirmations && Object.keys(toolConfirmations).length > 0) {
-      const firstKey = Object.keys(toolConfirmations)[0];
-      const confirmation = toolConfirmations[firstKey];
+    const confirmationCall = functionData.find(item => item.kind === 'call' && item.name === 'adk_request_confirmation');
+    if (confirmationCall) {
+      const args = confirmationCall.data?.args || {};
+      const original = args.originalFunctionCall || {};
+      const confirmation = args.toolConfirmation || {};
+      const originalName = String(original.name || 'WORKSPACE_WRITE');
+      let actionType: ApprovalRequest['actionType'] = 'WORKSPACE_WRITE';
+      if (originalName.includes('gmail')) actionType = originalName.includes('send') ? 'GMAIL_SEND' : 'GMAIL_DRAFT';
+      else if (originalName.includes('calendar') || originalName.includes('schedule')) actionType = 'CALENDAR_CREATE';
+      const originalArgs = original.args || {};
       approvalRequest = {
-        id: `appr_${Date.now()}`,
-        actionType: confirmation.actionType || 'WORKSPACE_WRITE',
-        title: confirmation.title || `Authorize ADK Action: ${firstKey}`,
-        description: confirmation.description || 'Google ADK Sylvia requested human operator sign-off before executing this action.',
-        recipient: confirmation.recipient, subject: confirmation.subject,
-        bodyPreview: confirmation.bodyPreview || confirmation.preview, status: 'WAITING', riskLevel: 'MEDIUM', createdAt: new Date().toISOString(),
+        id: `approval_${confirmationCall.id || Date.now()}`,
+        actionType,
+        title: confirmation.hint || `Approve ${originalName.replace(/_/g, ' ')}`,
+        description: confirmation.hint || `Sylvia is requesting human approval for ${originalName.replace(/_/g, ' ')}.`,
+        recipient: originalArgs.recipient || originalArgs.to,
+        subject: originalArgs.subject,
+        bodyPreview: originalArgs.body || originalArgs.bodyPreview || confirmation.payload?.body,
+        scheduledTime: originalArgs.start_time || originalArgs.startTime,
+        status: 'WAITING',
+        riskLevel: actionType === 'GMAIL_SEND' ? 'HIGH' : 'MEDIUM',
+        metadata: { originalFunctionCall: original, toolConfirmation: confirmation },
+        confirmationCallId: confirmationCall.id,
+        confirmationName: confirmationCall.name,
+        originalFunctionCallId: original.id,
+        confirmationPayload: confirmation.payload && typeof confirmation.payload === 'object' ? confirmation.payload : undefined,
+        createdAt: new Date().toISOString(),
       };
     }
 
-    return { reply: replyText, specialist: specialistName, contextId: result.contextId, toolExecutions, approvalRequest, rawAdkResult: result };
+    const specialist = String(result.metadata?.adk_author || 'Sylvia');
+    return {
+      reply: replyText,
+      specialist: specialist.charAt(0).toUpperCase() + specialist.slice(1),
+      contextId: result.contextId,
+      taskId: result.id,
+      toolExecutions,
+      approvalRequest,
+      gmailMessages,
+      calendarEvents,
+      workspaceResult,
+      rawAdkResult: result,
+    };
   }
 
-  public async submitApproval(approvalId: string, decision: 'APPROVED' | 'CANCELLED'): Promise<ApprovalResult> {
+  public async submitApproval(approval: ApprovalRequest, decision: 'APPROVED' | 'CANCELLED'): Promise<ApprovalResult> {
+    if (!approval.confirmationCallId || !approval.confirmationName) {
+      return {
+        success: false,
+        decision,
+        reply: 'The live ADK approval request is missing its confirmation call identifier. No external action was executed.',
+        toolExecutions: [],
+        error: 'Missing confirmationCallId/confirmationName',
+      };
+    }
+
+    const confirmationResponse: Record<string, unknown> = { confirmed: decision === 'APPROVED' };
+    if (decision === 'APPROVED' && approval.confirmationPayload) confirmationResponse.payload = approval.confirmationPayload;
+
     const payload = {
       jsonrpc: '2.0', id: Date.now(), method: 'message/send',
       params: {
         ...(this.currentContextId ? { contextId: this.currentContextId } : {}),
-        message: { messageId: `approval_${Date.now()}`, role: 'user', parts: [{ text: `[HUMAN_APPROVAL_DECISION: ${decision} for action ${approvalId}]` }] },
+        message: {
+          messageId: `approval_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          role: 'user',
+          parts: [{
+            kind: 'data',
+            data: { id: approval.confirmationCallId, name: approval.confirmationName, response: confirmationResponse },
+            metadata: { adk_type: 'function_response' },
+          }],
+        },
       },
     };
 
     try {
-      const response = await fetch('/a2a/app', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok || body?.error) {
-        const error = body?.error?.message || `Approval request failed with HTTP ${response.status}`;
-        return { success: false, reply: error, toolExecutions: [], rawAdkResult: body?.result, error };
-      }
-
+      const body = await this.postA2A(payload);
+      if (body?.error) return { success: false, decision, reply: body.error.message || 'ADK rejected the approval response.', toolExecutions: [], rawAdkResult: body?.result, error: body.error.message };
       const parsed = this.parseADKResponse(body);
-      const hasGmailExecution = parsed.toolExecutions.some(tool => tool.toolName === 'GMAIL');
-      const success = decision === 'CANCELLED' || hasGmailExecution;
+      const gmailTool = parsed.toolExecutions.find(tool => tool.toolName === 'GMAIL' && tool.status === 'completed');
+      const raw = parsed.workspaceResult || {};
+      const rawDraft = raw.draft && typeof raw.draft === 'object' ? raw.draft as Record<string, unknown> : raw;
+      const draftId = rawDraft.draftId || rawDraft.draft_id || (rawDraft.id && approval.actionType === 'GMAIL_DRAFT' ? rawDraft.id : undefined);
+      const messageId = rawDraft.messageId || rawDraft.message_id;
+      const threadId = rawDraft.threadId || rawDraft.thread_id;
+      const operationSuccess = raw.success === true || rawDraft.success === true;
+      const verified = rawDraft.verified === true || rawDraft.verification === 'verified' || rawDraft.status === 'verified';
+      const draft: GmailDraftResult | undefined = approval.actionType === 'GMAIL_DRAFT' ? {
+        success: operationSuccess,
+        verified,
+        draftId: draftId ? String(draftId) : undefined,
+        messageId: messageId ? String(messageId) : undefined,
+        threadId: threadId ? String(threadId) : undefined,
+        recipient: approval.recipient,
+        subject: approval.subject,
+        error: !operationSuccess ? String(raw.error || rawDraft.error || '') || undefined : undefined,
+      } : undefined;
+      const success = decision === 'CANCELLED'
+        ? Boolean(parsed.rawAdkResult) && !parsed.toolExecutions.some(tool => tool.status === 'failed')
+        : Boolean(gmailTool && draft?.success && draft.draftId && draft.verified);
       return {
         success,
+        decision,
         reply: parsed.reply,
         toolExecutions: parsed.toolExecutions,
+        draft,
         rawAdkResult: parsed.rawAdkResult,
-        error: success ? undefined : 'ADK acknowledged the approval message, but did not report a Gmail tool execution. The UI will not claim that a draft was created.',
+        error: success ? undefined : decision === 'CANCELLED'
+          ? 'The cancellation could not be confirmed by the live ADK response.'
+          : 'The live ADK response did not provide a verified Gmail draft result. The UI will not claim that a draft was created.',
       };
     } catch (err: unknown) {
       const error = err instanceof Error ? err.message : String(err);
-      return { success: false, reply: error, toolExecutions: [], error };
+      return { success: false, decision, reply: error, toolExecutions: [], error };
     }
   }
 }
