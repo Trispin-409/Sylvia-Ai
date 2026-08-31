@@ -14,6 +14,7 @@ import {
   ActivityEvent,
   BackendHealth,
   AgentCard,
+  WorkspaceHealth,
 } from '../types';
 import { sylviaApi } from '../services/sylviaApi';
 import {
@@ -21,7 +22,6 @@ import {
   INITIAL_CONTEXT_MEMORIES,
   INITIAL_MISSION,
   INITIAL_SPECIALISTS,
-  INITIAL_ACTIVITIES,
 } from '../data/initialData';
 
 let idCounter = 0;
@@ -35,19 +35,20 @@ export function useSylvia() {
   const [activeView, setActiveView] = useState<NavView>('chat');
   const [messages, setMessages] = useState<ChatItem[]>([{
     id: 'welcome_msg_init', sender: 'sylvia',
-    text: "Greetings. I am **Sylvia**, your collaborative digital operator.\n\nI am synchronized with your **Decision DNA**, **Context Memory**, and **Google Workspace**. I deconstruct complex goals into executable missions and coordinate our specialist agents.\n\nHow can we advance your objectives today?",
+    text: "Greetings. I am **Sylvia**, your collaborative digital operator.\n\nI am synchronized with your **Decision DNA** and **Context Memory**. Google Workspace status will be shown only after a live backend Workspace check or operation.\n\nHow can we advance your objectives today?",
     timestamp: 'Just now',
   }]);
   const [activeMission, setActiveMission] = useState<Mission>(INITIAL_MISSION);
   const [decisionDNA, setDecisionDNA] = useState<DecisionDNA>(INITIAL_DECISION_DNA);
   const [contextMemories, setContextMemories] = useState<ContextMemory[]>(INITIAL_CONTEXT_MEMORIES);
-  const [specialists] = useState<SpecialistAgent[]>(INITIAL_SPECIALISTS);
+  const [specialists, setSpecialists] = useState<SpecialistAgent[]>(INITIAL_SPECIALISTS);
 
   // Live Workspace state is intentionally empty at startup. Only real ADK tool output populates it.
   const [gmailMessages, setGmailMessages] = useState<GmailMessage[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([]);
-  const [activities, setActivities] = useState<ActivityEvent[]>(INITIAL_ACTIVITIES);
+  // Activity feed starts empty: no pre-seeded Workspace actions are presented as real events.
+  const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
   const [health, setHealth] = useState<BackendHealth>({
     connected: false,
@@ -74,8 +75,9 @@ export function useSylvia() {
 
   const checkSystemHealth = useCallback(async () => {
     try {
+      // This is a lightweight HTTP health probe. It does not invoke an LLM.
       const healthResult = await sylviaApi.checkHealth();
-      setHealth(healthResult);
+      setHealth(prev => ({ ...healthResult, workspace: prev.workspace }));
       setAgentCard(await sylviaApi.getAgentCard());
       if (healthResult.connected) addActivity('Sylvia Core', `Connected to live ADK backend at ${healthResult.backendUrl}`, 'success');
     } catch (error) {
@@ -97,13 +99,44 @@ export function useSylvia() {
     }
   }, []);
 
+  const applyBackendWorkspaceHealth = useCallback((workspaceResult?: Record<string, unknown>) => {
+    if (!workspaceResult || typeof workspaceResult !== 'object') return;
+    const raw = workspaceResult as any;
+    const gmail = raw.gmail && typeof raw.gmail === 'object' ? raw.gmail : null;
+    const calendar = raw.calendar && typeof raw.calendar === 'object' ? raw.calendar : null;
+    if (typeof raw.authenticated !== 'boolean' && !gmail && !calendar) return;
+
+    const workspace: WorkspaceHealth = {
+      source: 'backend',
+      authenticated: Boolean(raw.authenticated),
+      gmailConnected: Boolean(gmail?.connected),
+      gmailEmail: gmail?.email ? String(gmail.email) : undefined,
+      calendarConnected: Boolean(calendar?.connected),
+      calendarCount: calendar?.calendar_count != null ? Number(calendar.calendar_count) : undefined,
+      error: String(gmail?.error || calendar?.error || '') || undefined,
+      checkedAt: new Date().toISOString(),
+    };
+
+    setHealth(prev => ({ ...prev, workspace }));
+    setSpecialists(prev => prev.map(specialist => specialist.id === 'workspace_specialist'
+      ? { ...specialist, connected: workspace.gmailConnected || workspace.calendarConnected, status: workspace.gmailConnected || workspace.calendarConnected ? 'online' : 'idle' }
+      : specialist));
+    addActivity(
+      'Workspace Specialist',
+      `Workspace health returned by backend: Gmail ${workspace.gmailConnected ? 'connected' : 'not connected'}, Calendar ${workspace.calendarConnected ? 'connected' : 'not connected'}`,
+      workspace.authenticated && !workspace.error ? 'success' : 'error',
+      'WORKSPACE_HEALTH',
+      workspace.gmailEmail || workspace.error,
+    );
+  }, [addActivity]);
+
   const sendMessage = useCallback(async (text: string, onSpeechResponse?: (reply: string) => void) => {
     if (!text.trim()) return;
     const normalized = text.trim();
 
     appendChatMessage({ id: generateUniqueId('user'), sender: 'user', text: normalized, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
     setSylviaState('THINKING');
-    addActivity('Sylvia Root Agent', `Dispatching goal to live Google ADK: "${normalized.slice(0, 60)}${normalized.length > 60 ? '…' : ''}"`, 'working');
+    addActivity('Sylvia Root Agent', `Dispatching goal to live Google ADK: \"${normalized.slice(0, 60)}${normalized.length > 60 ? '…' : ''}\"`, 'working');
 
     const lower = normalized.toLowerCase();
     const isWorkspaceRequest = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
@@ -130,6 +163,7 @@ export function useSylvia() {
         setCalendarEvents(response.calendarEvents);
         addActivity('Workspace Specialist', `Loaded ${response.calendarEvents.length} real Calendar events returned by ADK`, 'success', 'CALENDAR_READ');
       }
+      applyBackendWorkspaceHealth(response.workspaceResult);
       response.toolExecutions.forEach(tool => {
         addActivity(response.specialist, `${tool.status === 'failed' ? 'ADK tool failed' : 'ADK tool executed'}: ${tool.action}`, tool.status === 'failed' ? 'error' : 'success', tool.action, tool.result);
       });
@@ -163,16 +197,16 @@ export function useSylvia() {
       appendChatMessage({ id: generateUniqueId('err'), sender: 'sylvia', text: `**ADK Communication Error**\n\n${errorMsg}`, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       window.setTimeout(() => setSylviaState('IDLE'), 4000);
     }
-  }, [addActivity, appendChatMessage, setActiveView]);
+  }, [addActivity, appendChatMessage, applyBackendWorkspaceHealth, setActiveView]);
 
   const approveAction = useCallback(async (approvalId: string) => {
     if (handledApprovalsRef.current.has(approvalId) || processingApprovalsRef.current.has(approvalId)) return;
     const approval = approvalQueue.find(item => item.id === approvalId);
-    if (!approval) return;
+    if (!approval || approval.status !== 'WAITING') return;
 
     processingApprovalsRef.current.add(approvalId);
     setSylviaState('WORKING');
-    addActivity('Human Operator', `Explicit approval granted for ${approval.title}`, 'info', 'APPROVAL_GRANTED');
+    addActivity('Human Operator', `Explicit approval selected for ${approval.title}`, 'info', 'APPROVAL_GRANTED');
 
     try {
       const result = await sylviaApi.submitApproval(approval, 'APPROVED');
@@ -227,7 +261,7 @@ export function useSylvia() {
   const cancelApproval = useCallback(async (approvalId: string) => {
     if (handledApprovalsRef.current.has(approvalId) || processingApprovalsRef.current.has(approvalId)) return;
     const approval = approvalQueue.find(item => item.id === approvalId);
-    if (!approval) return;
+    if (!approval || approval.status !== 'WAITING') return;
 
     processingApprovalsRef.current.add(approvalId);
     setSylviaState('WORKING');
@@ -255,7 +289,7 @@ export function useSylvia() {
     setActiveMission(prev => {
       const updatedSteps = prev.steps.map(step => step.id === stepId ? { ...step, status } : step);
       const completedCount = updatedSteps.filter(step => step.status === 'completed').length;
-      return { ...prev, steps: updatedSteps, progress: Math.round((completedCount / updatedSteps.length) * 100), updatedAt: new Date().toISOString() };
+      return { ...prev, steps: updatedSteps, progress: updatedSteps.length ? Math.round((completedCount / updatedSteps.length) * 100) : 0, updatedAt: new Date().toISOString() };
     });
     addActivity('Action Planner', `Step updated: ${stepId} → ${status.toUpperCase()}`, 'info', 'MISSION_STEP_UPDATE');
   }, [addActivity]);
@@ -263,7 +297,7 @@ export function useSylvia() {
   const addDecisionRule = useCallback((rule: string) => {
     if (!rule.trim()) return;
     setDecisionDNA(prev => ({ ...prev, decisionRules: [...prev.decisionRules, rule.trim()] }));
-    addActivity('Decision Partner', `Decision rule registered: "${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}"`, 'success');
+    addActivity('Decision Partner', `Decision rule registered: \"${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}\"`, 'success');
   }, [addActivity]);
 
   const addContextMemory = useCallback((key: string, summary: string, details: string, category: ContextMemory['category']) => {
