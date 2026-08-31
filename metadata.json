@@ -1,0 +1,7 @@
+{
+  "name": "SYLVIA",
+  "description": "Human-Centric AI Operator Interface & Multi-Agent Command Center powered by A2A Protocol and Google ADK",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
