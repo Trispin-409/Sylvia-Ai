@@ -183,7 +183,9 @@ export function App() {
             />
           )}
 
-          {activeView === 'workspace-calendar' && <CalendarPanel events={calendarEvents} />}
+          {activeView === 'workspace-calendar' && (
+            <CalendarPanel events={calendarEvents} workspaceHealth={health.workspace} />
+          )}
 
           {activeView === 'memory' && (
             <div className="p-6 max-w-4xl mx-auto w-full h-full overflow-y-auto">
