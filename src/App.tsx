@@ -17,7 +17,7 @@ import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
 import { NavView } from './types';
-import { Menu, X, Sliders, Sparkles, Target, Brain, Dna } from 'lucide-react';
+import { Menu, Sparkles, Target, Dna } from 'lucide-react';
 
 export function App() {
   const {
@@ -48,7 +48,6 @@ export function App() {
     updateBackendUrl,
   } = useSylvia();
 
-  // Voice synthesis & recognition hook
   const {
     isListening,
     startListening,
@@ -60,24 +59,19 @@ export function App() {
     speak,
   } = useVoice();
 
-  // Modal & Drawer UI states
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
-  // Auto-speak Sylvia's responses if voice output is enabled
   useEffect(() => {
     if (voiceOutputEnabled && chatMessages.length > 0) {
       const lastMsg = chatMessages[chatMessages.length - 1];
-      if (lastMsg.sender === 'sylvia' && !lastMsg.approvalRequest) {
-        speak(lastMsg.text);
-      }
+      if (lastMsg.sender === 'sylvia' && !lastMsg.approvalRequest) speak(lastMsg.text);
     }
   }, [chatMessages, voiceOutputEnabled, speak]);
 
-  // Global Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -90,34 +84,42 @@ export function App() {
   }, []);
 
   const handleToggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
+    if (isListening) stopListening();
+    else startListening();
   };
 
   const handleSendMessage = (text: string) => {
+    const lower = text.toLowerCase();
+    const isWorkspaceRequest =
+      lower.includes('gmail') ||
+      lower.includes('email') ||
+      lower.includes('inbox') ||
+      lower.includes('calendar') ||
+      lower.includes('meeting') ||
+      lower.includes('schedule');
+
+    // Workspace commands open the relevant live workspace panel while the request
+    // continues through the same A2A session. This keeps the UI aligned with the
+    // real ADK Workspace Specialist instead of leaving the user in a generic chat.
+    if (isWorkspaceRequest) {
+      if (lower.includes('calendar') || lower.includes('meeting') || lower.includes('schedule')) {
+        setActiveView('workspace-calendar');
+      } else {
+        setActiveView('workspace-gmail');
+      }
+    }
+
     sendMessage(text);
   };
 
   return (
     <div className="relative w-screen h-screen bg-[#030712] text-slate-100 flex overflow-hidden font-sans select-none">
-      {/* Background Deep Space Starfield & Constellation Network */}
       <StarField sylviaState={sylviaState} />
 
-      {/* Left Navigation Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 md:static transform transition-transform duration-300 ease-in-out ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
-      >
+      <div className={`fixed inset-y-0 left-0 z-40 md:static transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <Sidebar
           activeView={activeView}
-          onSelectView={view => {
-            setActiveView(view);
-            setMobileMenuOpen(false);
-          }}
+          onSelectView={view => { setActiveView(view); setMobileMenuOpen(false); }}
           sylviaState={sylviaState}
           health={health}
           onOpenDiagnostics={() => setShowDiagnostics(true)}
@@ -126,54 +128,28 @@ export function App() {
         />
       </div>
 
-      {/* Main Workspace Universe */}
       <div className="flex-1 flex flex-col h-full min-w-0 relative z-10">
-        {/* Mobile Header Bar */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md z-30">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300"
-          >
+          <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
             <Menu className="w-5 h-5" />
           </button>
-
           <div className="flex items-center gap-2 font-display font-bold tracking-widest text-slate-100">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>SYLVIA</span>
+            <Sparkles className="w-4 h-4 text-indigo-400" /><span>SYLVIA</span>
           </div>
-
-          <button
-            onClick={() => setRightPanelOpen(prev => !prev)}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300"
-          >
+          <button onClick={() => setRightPanelOpen(prev => !prev)} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
             <Target className="w-5 h-5 text-indigo-400" />
           </button>
         </div>
 
-        {/* View Switcher Routing */}
         <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
           {activeView === 'chat' && (
             <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
-              {/* Dynamic Animated Central Digital Human Presence Banner */}
               <div className="flex-shrink-0">
-                <SylviaPresence
-                  sylviaState={sylviaState}
-                  health={health}
-                  isListening={isListening}
-                  audioLevel={audioLevel}
-                />
+                <SylviaPresence sylviaState={sylviaState} health={health} isListening={isListening} audioLevel={audioLevel} />
               </div>
-
-              {/* Streaming Conversation & Tool Logs */}
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <ChatPanel
-                  messages={chatMessages}
-                  onApproveAction={approveAction}
-                  onCancelAction={cancelAction}
-                />
+                <ChatPanel messages={chatMessages} onApproveAction={approveAction} onCancelAction={cancelAction} />
               </div>
-
-              {/* Console Input Bar */}
               <div className="flex-shrink-0">
                 <CommandBar
                   onSendMessage={handleSendMessage}
@@ -190,20 +166,11 @@ export function App() {
           )}
 
           {activeView === 'specialists' && (
-            <SpecialistGraph
-              specialists={specialists}
-              activeDelegationPath={activeDelegationPath}
-              activeSpecialistNode={activeSpecialistNode}
-              onSimulateDelegation={runDemoSequence}
-            />
+            <SpecialistGraph specialists={specialists} activeDelegationPath={activeDelegationPath} activeSpecialistNode={activeSpecialistNode} onSimulateDelegation={runDemoSequence} />
           )}
 
           {activeView === 'mission-control' && (
-            <MissionControl
-              mission={mission}
-              onClose={() => setActiveView('chat')}
-              onUpdateStepStatus={updateMissionStepStatus}
-            />
+            <MissionControl mission={mission} onClose={() => setActiveView('chat')} onUpdateStepStatus={updateMissionStepStatus} />
           )}
 
           {activeView === 'workspace-gmail' && (
@@ -211,7 +178,6 @@ export function App() {
               messages={gmailMessages}
               onDraftReply={msg => {
                 sendMessage(`Please draft a reply to ${msg.sender} for the thread: "${msg.subject}"`);
-                setActiveView('chat');
               }}
               pendingApprovals={pendingApprovals}
               onApproveAction={approveAction}
@@ -219,47 +185,28 @@ export function App() {
             />
           )}
 
-          {activeView === 'workspace-calendar' && (
-            <CalendarPanel events={calendarEvents} />
-          )}
+          {activeView === 'workspace-calendar' && <CalendarPanel events={calendarEvents} />}
 
           {activeView === 'memory' && (
             <div className="p-6 max-w-4xl mx-auto w-full h-full overflow-y-auto">
               <div className="mb-4 pb-2 border-b border-slate-800 flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-display font-bold text-slate-100 flex items-center gap-2">
-                    <Dna className="w-5 h-5 text-purple-400" />
-                    Decision DNA & Context Memory
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Persistent alignment constraints, objectives, and working style rules
-                  </p>
+                  <h2 className="text-xl font-display font-bold text-slate-100 flex items-center gap-2"><Dna className="w-5 h-5 text-purple-400" />Decision DNA & Context Memory</h2>
+                  <p className="text-xs text-slate-400">Persistent alignment constraints, objectives, and working style rules</p>
                 </div>
               </div>
-              <MemoryPanel
-                decisionDNA={decisionDNA}
-                contextMemories={contextMemories}
-                onAddDecisionRule={addDecisionRule}
-                onAddContextMemory={addContextMemory}
-              />
+              <MemoryPanel decisionDNA={decisionDNA} contextMemories={contextMemories} onAddDecisionRule={addDecisionRule} onAddContextMemory={addContextMemory} />
             </div>
           )}
 
           {activeView === 'activity' && (
-            <div className="p-6 max-w-4xl mx-auto w-full h-full overflow-y-auto">
-              <ActivityFeed activities={activities} />
-            </div>
+            <div className="p-6 max-w-4xl mx-auto w-full h-full overflow-y-auto"><ActivityFeed activities={activities} /></div>
           )}
         </main>
       </div>
 
-      {/* Right Intelligence Panel (Mission / Memory / Activity) */}
       {activeView !== 'mission-control' && (
-        <div
-          className={`fixed inset-y-0 right-0 z-30 md:static transform transition-transform duration-300 ease-in-out ${
-            rightPanelOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0 hidden md:flex'
-          }`}
-        >
+        <div className={`fixed inset-y-0 right-0 z-30 md:static transform transition-transform duration-300 ease-in-out ${rightPanelOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0 hidden md:flex'}`}>
           <RightPanel
             mission={mission}
             decisionDNA={decisionDNA}
@@ -273,37 +220,16 @@ export function App() {
         </div>
       )}
 
-      {/* Diagnostics Drawer Modal */}
-      <DiagnosticsPanel
-        isOpen={showDiagnostics}
-        onClose={() => setShowDiagnostics(false)}
-        health={health}
-        agentCard={agentCard}
-        onRefreshHealth={refreshHealth}
-        onUpdateBackendUrl={updateBackendUrl}
-      />
+      <DiagnosticsPanel isOpen={showDiagnostics} onClose={() => setShowDiagnostics(false)} health={health} agentCard={agentCard} onRefreshHealth={refreshHealth} onUpdateBackendUrl={updateBackendUrl} />
 
-      {/* Command Palette (⌘K) */}
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
-        onSelectAction={(view, prompt) => {
-          setActiveView(view);
-          if (prompt) sendMessage(prompt);
-        }}
-        onOpenDiagnostics={() => {
-          setShowCommandPalette(false);
-          setShowDiagnostics(true);
-        }}
+        onSelectAction={(view, prompt) => { setActiveView(view); if (prompt) handleSendMessage(prompt); }}
+        onOpenDiagnostics={() => { setShowCommandPalette(false); setShowDiagnostics(true); }}
       />
 
-      {/* First-Load Cinematic Welcome Onboarding Modal */}
-      {showOnboarding && (
-        <OnboardingModal
-          health={health}
-          onEnterSylvia={() => setShowOnboarding(false)}
-        />
-      )}
+      {showOnboarding && <OnboardingModal health={health} onEnterSylvia={() => setShowOnboarding(false)} />}
     </div>
   );
 }
