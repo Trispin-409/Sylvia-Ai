@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SylviaState, BackendHealth } from '../types';
-import { Sparkles, ShieldCheck, AlertCircle, Cpu } from 'lucide-react';
+import { Sparkles, ShieldCheck, Cpu, ChevronDown, ChevronUp, Radio } from 'lucide-react';
 
 interface SylviaPresenceProps {
   sylviaState: SylviaState;
@@ -19,6 +19,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
   onClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // State-specific palette configuration
   const getStateColors = () => {
@@ -30,7 +31,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(56, 189, 248, 0.45)',
           core: '#ffffff',
           label: 'LISTENING',
-          badgeColor: 'border-sky-500/50 text-sky-300 bg-sky-950/40',
+          badgeColor: 'border-sky-500/50 text-sky-300 bg-sky-950/50',
         };
       case 'THINKING':
         return {
@@ -39,7 +40,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(168, 85, 247, 0.55)',
           core: '#fdf4ff',
           label: 'THINKING',
-          badgeColor: 'border-purple-500/50 text-purple-300 bg-purple-950/40',
+          badgeColor: 'border-purple-500/50 text-purple-300 bg-purple-950/50',
         };
       case 'ANALYZING':
         return {
@@ -48,7 +49,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(99, 102, 241, 0.55)',
           core: '#e0e7ff',
           label: 'ANALYZING CONTEXT',
-          badgeColor: 'border-indigo-500/50 text-indigo-300 bg-indigo-950/40',
+          badgeColor: 'border-indigo-500/50 text-indigo-300 bg-indigo-950/50',
         };
       case 'WORKING':
         return {
@@ -57,7 +58,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(59, 130, 246, 0.55)',
           core: '#eff6ff',
           label: 'EXECUTING TASK',
-          badgeColor: 'border-blue-500/50 text-blue-300 bg-blue-950/40',
+          badgeColor: 'border-blue-500/50 text-blue-300 bg-blue-950/50',
         };
       case 'WAITING_FOR_APPROVAL':
         return {
@@ -66,7 +67,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(245, 158, 11, 0.6)',
           core: '#fffbeb',
           label: 'WAITING FOR APPROVAL',
-          badgeColor: 'border-amber-500/60 text-amber-300 bg-amber-950/50 animate-pulse',
+          badgeColor: 'border-amber-500/60 text-amber-300 bg-amber-950/60 animate-pulse',
         };
       case 'COMPLETED':
         return {
@@ -75,7 +76,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(16, 185, 129, 0.5)',
           core: '#ecfdf5',
           label: 'TASK COMPLETE',
-          badgeColor: 'border-emerald-500/50 text-emerald-300 bg-emerald-950/40',
+          badgeColor: 'border-emerald-500/50 text-emerald-300 bg-emerald-950/50',
         };
       case 'ERROR':
         return {
@@ -84,7 +85,7 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(239, 68, 68, 0.55)',
           core: '#fef2f2',
           label: 'SYSTEM ALERT',
-          badgeColor: 'border-red-500/50 text-red-300 bg-red-950/40',
+          badgeColor: 'border-red-500/50 text-red-300 bg-red-950/50',
         };
       case 'IDLE':
       default:
@@ -94,14 +95,14 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
           glow: 'rgba(129, 140, 248, 0.35)',
           core: '#f8fafc',
           label: 'OPERATIONAL',
-          badgeColor: 'border-indigo-500/30 text-indigo-200 bg-indigo-950/30',
+          badgeColor: 'border-indigo-500/30 text-indigo-200 bg-indigo-950/40',
         };
     }
   };
 
   const stateConfig = getStateColors();
 
-  // Render high-fidelity particle silhouette & digital aura onto Canvas
+  // Render particle hologram onto Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -109,112 +110,67 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
     if (!ctx) return;
 
     let animId: number;
-    const width = (canvas.width = 460);
-    const height = (canvas.height = 480);
+    const width = (canvas.width = 240);
+    const height = (canvas.height = 240);
     const centerX = width / 2;
-    const centerY = height / 2 - 10;
+    const centerY = height / 2;
 
-    // Define mathematical humanoid constellation keypoints (face silhouette, graceful neck, shoulders, and flowing particle hair)
     const baseNodes = [
-      // Forehead / Crown
-      { x: 0, y: -90, radius: 2.2, baseRadius: 2.2, phase: 0 },
-      { x: -16, y: -80, radius: 2.0, baseRadius: 2.0, phase: 0.4 },
-      { x: 16, y: -80, radius: 2.0, baseRadius: 2.0, phase: 0.8 },
-      { x: -32, y: -65, radius: 1.8, baseRadius: 1.8, phase: 1.2 },
-      { x: 32, y: -65, radius: 1.8, baseRadius: 1.8, phase: 1.6 },
-
-      // Temporal / Eye brows & Intelligent Core Eyes
-      { x: -20, y: -45, radius: 2.4, baseRadius: 2.4, phase: 2.0, isEye: true },
-      { x: 20, y: -45, radius: 2.4, baseRadius: 2.4, phase: 2.4, isEye: true },
-      { x: 0, y: -48, radius: 2.6, baseRadius: 2.6, phase: 2.2, isThirdEye: true }, // Central intuition node
-
-      // Cheekbones & Nose line
-      { x: -36, y: -25, radius: 2.1, baseRadius: 2.1, phase: 2.8 },
-      { x: 36, y: -25, radius: 2.1, baseRadius: 2.1, phase: 3.2 },
-      { x: 0, y: -20, radius: 1.6, baseRadius: 1.6, phase: 3.6 },
-      { x: 0, y: -5, radius: 1.8, baseRadius: 1.8, phase: 4.0 },
-
-      // Jawline & Chin
-      { x: -28, y: 15, radius: 2.0, baseRadius: 2.0, phase: 4.4 },
-      { x: 28, y: 15, radius: 2.0, baseRadius: 2.0, phase: 4.8 },
-      { x: -14, y: 32, radius: 2.2, baseRadius: 2.2, phase: 5.2 },
-      { x: 14, y: 32, radius: 2.2, baseRadius: 2.2, phase: 5.6 },
-      { x: 0, y: 42, radius: 2.8, baseRadius: 2.8, phase: 6.0 }, // Chin apex
-
-      // Neck & Collar
-      { x: -10, y: 64, radius: 2.0, baseRadius: 2.0, phase: 0.5 },
-      { x: 10, y: 64, radius: 2.0, baseRadius: 2.0, phase: 1.5 },
-      { x: -18, y: 88, radius: 2.2, baseRadius: 2.2, phase: 2.5 },
-      { x: 18, y: 88, radius: 2.2, baseRadius: 2.2, phase: 3.5 },
-      { x: 0, y: 92, radius: 2.5, baseRadius: 2.5, phase: 4.5 },
-
-      // Shoulders & Chest silhouette
-      { x: -55, y: 110, radius: 2.4, baseRadius: 2.4, phase: 1.1 },
-      { x: 55, y: 110, radius: 2.4, baseRadius: 2.4, phase: 2.1 },
-      { x: -95, y: 130, radius: 2.2, baseRadius: 2.2, phase: 3.1 },
-      { x: 95, y: 130, radius: 2.2, baseRadius: 2.2, phase: 4.1 },
-      { x: -130, y: 155, radius: 1.8, baseRadius: 1.8, phase: 5.1 },
-      { x: 130, y: 155, radius: 1.8, baseRadius: 1.8, phase: 6.1 },
-
-      // Flowing hair / astral energy trails
-      { x: -50, y: -85, radius: 1.6, baseRadius: 1.6, phase: 0.9 },
-      { x: 50, y: -85, radius: 1.6, baseRadius: 1.6, phase: 1.9 },
-      { x: -70, y: -50, radius: 1.5, baseRadius: 1.5, phase: 2.9 },
-      { x: 70, y: -50, radius: 1.5, baseRadius: 1.5, phase: 3.9 },
-      { x: -80, y: 0, radius: 1.4, baseRadius: 1.4, phase: 4.9 },
-      { x: 80, y: 0, radius: 1.4, baseRadius: 1.4, phase: 5.9 },
-      { x: -75, y: 55, radius: 1.5, baseRadius: 1.5, phase: 0.3 },
-      { x: 75, y: 55, radius: 1.5, baseRadius: 1.5, phase: 1.3 },
+      { x: 0, y: -45, radius: 2.2, baseRadius: 2.2, phase: 0 },
+      { x: -10, y: -40, radius: 2.0, baseRadius: 2.0, phase: 0.4 },
+      { x: 10, y: -40, radius: 2.0, baseRadius: 2.0, phase: 0.8 },
+      { x: -18, y: -30, radius: 1.8, baseRadius: 1.8, phase: 1.2 },
+      { x: 18, y: -30, radius: 1.8, baseRadius: 1.8, phase: 1.6 },
+      { x: -12, y: -18, radius: 2.4, baseRadius: 2.4, phase: 2.0, isEye: true },
+      { x: 12, y: -18, radius: 2.4, baseRadius: 2.4, phase: 2.4, isEye: true },
+      { x: 0, y: -20, radius: 2.6, baseRadius: 2.6, phase: 2.2, isThirdEye: true },
+      { x: -20, y: -10, radius: 2.1, baseRadius: 2.1, phase: 2.8 },
+      { x: 20, y: -10, radius: 2.1, baseRadius: 2.1, phase: 3.2 },
+      { x: 0, y: 0, radius: 1.8, baseRadius: 1.8, phase: 4.0 },
+      { x: -14, y: 15, radius: 2.0, baseRadius: 2.0, phase: 4.4 },
+      { x: 14, y: 15, radius: 2.0, baseRadius: 2.0, phase: 4.8 },
+      { x: 0, y: 24, radius: 2.8, baseRadius: 2.8, phase: 6.0 },
+      { x: -6, y: 35, radius: 2.0, baseRadius: 2.0, phase: 0.5 },
+      { x: 6, y: 35, radius: 2.0, baseRadius: 2.0, phase: 1.5 },
+      { x: -35, y: 55, radius: 2.4, baseRadius: 2.4, phase: 1.1 },
+      { x: 35, y: 55, radius: 2.4, baseRadius: 2.4, phase: 2.1 },
+      { x: -60, y: 70, radius: 2.2, baseRadius: 2.2, phase: 3.1 },
+      { x: 60, y: 70, radius: 2.2, baseRadius: 2.2, phase: 4.1 },
     ];
 
-    // Constellation connection tuples between human keypoints
     const connections: [number, number][] = [
-      // Crown & Brow
       [0, 1], [0, 2], [1, 3], [2, 4],
       [1, 5], [2, 6], [5, 7], [6, 7], [7, 0],
-      // Face contours
-      [5, 8], [6, 9], [8, 12], [9, 13],
-      [12, 14], [13, 15], [14, 16], [15, 16],
-      [7, 10], [10, 11], [11, 16],
-      // Neck & Torso
-      [16, 17], [16, 18], [17, 19], [18, 20],
-      [19, 21], [20, 21],
-      [19, 22], [20, 23], [22, 24], [23, 25],
-      [24, 26], [25, 27],
-      // Hair / Astral lines
-      [3, 28], [4, 29], [28, 30], [29, 31],
-      [30, 32], [31, 33], [32, 34], [33, 35],
-      [34, 22], [35, 23],
+      [5, 8], [6, 9], [8, 11], [9, 12],
+      [11, 13], [12, 13], [7, 10], [10, 13],
+      [13, 14], [13, 15], [14, 16], [15, 17],
+      [16, 18], [17, 19],
     ];
 
-    // Ambient floating orbital particles
-    const ambientParticles = Array.from({ length: 48 }, (_, i) => ({
-      orbitRadius: 110 + (i % 6) * 22,
-      angle: (i / 48) * Math.PI * 2,
-      speed: (0.003 + (i % 4) * 0.002) * (i % 2 === 0 ? 1 : -1),
-      size: Math.random() * 1.8 + 0.8,
-      alpha: Math.random() * 0.6 + 0.3,
-      yOffset: (Math.random() - 0.5) * 35,
+    const particles = Array.from({ length: 24 }, (_, i) => ({
+      orbitRadius: 55 + (i % 4) * 16,
+      angle: (i / 24) * Math.PI * 2,
+      speed: (0.005 + (i % 3) * 0.003) * (i % 2 === 0 ? 1 : -1),
+      size: Math.random() * 1.5 + 0.8,
+      alpha: Math.random() * 0.5 + 0.3,
     }));
 
     let time = 0;
 
     const renderPresence = () => {
       ctx.clearRect(0, 0, width, height);
-      time += 0.03;
+      time += 0.035;
 
-      // Breathing scale & subtle head movement
-      const breathScale = 1 + Math.sin(time * 0.8) * 0.022;
-      const headTilt = Math.sin(time * 0.4) * 1.5;
+      const breathScale = 1 + Math.sin(time * 0.9) * 0.03;
 
-      // Dynamic glow background behind silhouette
+      // Glow Core
       const auraGradient = ctx.createRadialGradient(
         centerX,
-        centerY - 20,
-        15,
+        centerY - 5,
+        5,
         centerX,
-        centerY - 20,
-        180
+        centerY - 5,
+        90
       );
       auraGradient.addColorStop(0, stateConfig.glow);
       auraGradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.08)');
@@ -222,109 +178,70 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
 
       ctx.fillStyle = auraGradient;
       ctx.beginPath();
-      ctx.arc(centerX, centerY - 20, 180, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY - 5, 90, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw outer geometric aura energy rings
+      // Outer aura ring
+      const ringRadius = 75 + Math.sin(time) * 4;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `${stateConfig.primary}44`;
       ctx.lineWidth = 1;
-      const ringCount = sylviaState === 'ANALYZING' || sylviaState === 'WORKING' ? 4 : 2;
-      for (let r = 0; r < ringCount; r++) {
-        const ringRadius = 140 + r * 30 + Math.sin(time + r) * 6;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `${stateConfig.primary}${Math.floor(18 - r * 4).toString(16).padStart(2, '0')}`;
-        ctx.setLineDash([4 + r * 2, 8 + r * 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      ctx.setLineDash([4, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-      // Orbital ambient particles
-      ambientParticles.forEach(p => {
-        p.angle += p.speed * (sylviaState === 'WORKING' ? 2.5 : 1);
+      // Particles
+      particles.forEach(p => {
+        p.angle += p.speed * (sylviaState === 'WORKING' ? 2 : 1);
         const px = centerX + Math.cos(p.angle) * p.orbitRadius;
-        const py = centerY + Math.sin(p.angle) * (p.orbitRadius * 0.42) + p.yOffset;
+        const py = centerY + Math.sin(p.angle) * (p.orbitRadius * 0.45);
 
         ctx.beginPath();
         ctx.arc(px, py, p.size, 0, Math.PI * 2);
         ctx.fillStyle = stateConfig.secondary;
         ctx.globalAlpha = p.alpha;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 6;
         ctx.shadowColor = stateConfig.primary;
         ctx.fill();
       });
 
-      // Compute dynamic node positions
+      // Nodes
       const transformedNodes = baseNodes.map(node => {
-        const oscillation = Math.sin(time * 1.5 + node.phase) * 2.2;
-        const nx = centerX + (node.x + oscillation * 0.3) * breathScale + headTilt * (node.y < 0 ? 0.6 : 0.2);
+        const oscillation = Math.sin(time * 1.5 + node.phase) * 1.4;
+        const nx = centerX + (node.x + oscillation * 0.3) * breathScale;
         const ny = centerY + (node.y + oscillation) * breathScale;
         return { ...node, x: nx, y: ny };
       });
 
-      // Draw Constellation Connection Lines
+      // Connection lines
       connections.forEach(([i1, i2]) => {
         const n1 = transformedNodes[i1];
         const n2 = transformedNodes[i2];
         if (!n1 || !n2) return;
 
-        const grad = ctx.createLinearGradient(n1.x, n1.y, n2.x, n2.y);
-        grad.addColorStop(0, stateConfig.primary);
-        grad.addColorStop(1, stateConfig.secondary);
-
         ctx.beginPath();
         ctx.moveTo(n1.x, n1.y);
         ctx.lineTo(n2.x, n2.y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.1;
-        ctx.globalAlpha = 0.32 + Math.sin(time + i1) * 0.12;
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = stateConfig.primary;
+        ctx.strokeStyle = stateConfig.primary;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.35 + Math.sin(time + i1) * 0.15;
         ctx.stroke();
       });
 
-      // Draw Humanoid Constellation Nodes
-      transformedNodes.forEach((node) => {
-        const pulse = Math.sin(time * 2 + node.phase) * 0.5 + 1;
-        const radius = node.baseRadius * pulse * (node.isEye || node.isThirdEye ? 1.4 : 1);
+      // Nodes
+      transformedNodes.forEach(node => {
+        const pulse = Math.sin(time * 2 + node.phase) * 0.4 + 1;
+        const radius = node.baseRadius * pulse;
 
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = node.isThirdEye || node.isEye ? stateConfig.core : stateConfig.primary;
         ctx.globalAlpha = node.isThirdEye ? 0.95 : 0.85;
-        ctx.shadowBlur = node.isThirdEye ? 16 : 9;
+        ctx.shadowBlur = node.isThirdEye ? 12 : 6;
         ctx.shadowColor = stateConfig.primary;
         ctx.fill();
-
-        // Inner white nucleus for eyes
-        if (node.isEye || node.isThirdEye) {
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, radius * 0.45, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = 1.0;
-          ctx.shadowBlur = 4;
-          ctx.fill();
-        }
       });
-
-      // Central Heart / Consciousness pulse
-      const corePulse = Math.sin(time * 2.5) * 4 + 12;
-      const coreGrad = ctx.createRadialGradient(
-        centerX,
-        centerY - 20,
-        2,
-        centerX,
-        centerY - 20,
-        corePulse
-      );
-      coreGrad.addColorStop(0, '#ffffff');
-      coreGrad.addColorStop(0.4, stateConfig.primary);
-      coreGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
-
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - 20, corePulse, 0, Math.PI * 2);
-      ctx.fillStyle = coreGrad;
-      ctx.globalAlpha = 0.65;
-      ctx.fill();
 
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
@@ -341,83 +258,101 @@ export const SylviaPresence: React.FC<SylviaPresenceProps> = ({
   return (
     <div
       id="sylvia-central-presence"
-      onClick={onClick}
-      className="relative flex flex-col items-center justify-center cursor-pointer select-none group"
+      className="w-full border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md transition-all select-none z-20"
     >
-      {/* Dynamic Luminous Canvas Core */}
-      <div className="relative w-[340px] h-[340px] md:w-[420px] md:h-[420px] flex items-center justify-center">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full object-contain pointer-events-none"
-        />
-
-        {/* Listening audio ripple effect */}
-        {isListening && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-48 h-48 rounded-full border border-sky-400/40 animate-ping opacity-60" />
-            <div className="w-64 h-64 rounded-full border border-indigo-400/20 animate-pulse-ring opacity-40" />
+      {/* Sleek Presence Banner */}
+      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
+        {/* Left: Avatar & Identity */}
+        <div className="flex items-center gap-3">
+          {/* Holographic Orb Canvas */}
+          <div
+            onClick={() => setIsExpanded(prev => !prev)}
+            className="relative w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-indigo-950/80 to-purple-950/80 border border-indigo-500/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-lg shadow-indigo-950/40 group hover:border-indigo-400/60 transition-all flex-shrink-0"
+            title="Click to toggle expanded hologram"
+          >
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full object-contain pointer-events-none scale-125"
+            />
+            {isListening && (
+              <div className="absolute inset-0 rounded-xl border border-sky-400 animate-ping opacity-50" />
+            )}
           </div>
-        )}
 
-        {/* Waiting For Approval Attention Ring */}
-        {sylviaState === 'WAITING_FOR_APPROVAL' && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-72 h-72 rounded-full border-2 border-amber-400/60 animate-ping opacity-30" />
-            <div className="w-80 h-80 rounded-full border border-amber-500/30 animate-pulse opacity-50" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-display font-bold text-sm tracking-wider text-slate-100 uppercase">
+                SYLVIA
+              </span>
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline-block text-[10px] font-mono-code text-slate-400">
+                · Collaborative Digital Operator
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${health.connected ? 'bg-emerald-400 animate-pulse' : 'bg-indigo-400'}`} />
+              <span className="text-[11px] font-mono-code text-slate-300">
+                {health.connected ? 'Google ADK Active' : 'Autonomous Engine Active'}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Sylvia Identity Card & Telemetry */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col items-center text-center mt-[-18px] z-10"
-      >
-        <div className="flex items-center gap-2.5 mb-1.5">
-          <div className="relative flex items-center justify-center">
-            <span className={`w-2.5 h-2.5 rounded-full ${health.connected ? 'bg-emerald-400' : 'bg-indigo-400'} animate-pulse`} />
-            <span className={`absolute w-4 h-4 rounded-full ${health.connected ? 'bg-emerald-400/30' : 'bg-indigo-400/30'} animate-ping`} />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold tracking-widest text-slate-100 uppercase">
-            SYLVIA
-          </h1>
-          <Sparkles className="w-4 h-4 text-indigo-400/80" />
         </div>
 
-        <p className="text-xs md:text-sm font-medium tracking-wider text-slate-400 uppercase mb-3">
-          COLLABORATIVE DIGITAL OPERATOR
-        </p>
-
-        {/* Status Indicators row */}
-        <div className="flex items-center flex-wrap justify-center gap-2">
+        {/* Right: State Badges & Expand Button */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Active State Pill */}
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono-code font-medium border ${stateConfig.badgeColor}`}>
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono-code font-medium border ${stateConfig.badgeColor}`}
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             {stateConfig.label}
           </span>
 
-          {/* Backend Connection Pill */}
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono-code ${
-            health.connected
-              ? 'border-emerald-500/40 text-emerald-300 bg-emerald-950/30'
-              : 'border-indigo-500/30 text-indigo-300 bg-indigo-950/20'
-          }`}>
+          {/* Connected System Badge */}
+          <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono-code border border-indigo-500/30 text-indigo-300 bg-indigo-950/20">
             {health.connected ? (
               <>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                Connected to ADK
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                ADK Synchronized
               </>
             ) : (
               <>
-                <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                {health.isDemoMode ? 'Interactive Sandbox' : 'A2A Ready'}
+                <Cpu className="w-3 h-3 text-indigo-400" />
+                A2A Sandbox
               </>
             )}
           </span>
+
+          {/* Toggle Expanded Constellation View */}
+          <button
+            onClick={() => setIsExpanded(prev => !prev)}
+            className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors text-xs flex items-center gap-1"
+            title={isExpanded ? 'Collapse Hologram' : 'Expand Hologram'}
+          >
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Optional Expanded Hologram Drawer */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden border-t border-slate-800/60 bg-slate-950/90 py-4 px-6 text-center"
+          >
+            <p className="text-xs font-mono-code text-indigo-300/80 uppercase tracking-widest mb-1">
+              Neural Constellation Telemetry
+            </p>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Real-time visualization of Sylvia’s cognitive decision loop, multi-agent delegation path, and human-in-the-loop alignment.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

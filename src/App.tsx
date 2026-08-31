@@ -16,7 +16,6 @@ import { ActivityFeed } from './components/ActivityFeed';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
-import { ApprovalCard } from './components/ApprovalCard';
 import { NavView } from './types';
 import { Menu, X, Sliders, Sparkles, Target, Brain, Dna } from 'lucide-react';
 
@@ -62,7 +61,7 @@ export function App() {
   } = useVoice();
 
   // Modal & Drawer UI states
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -154,9 +153,9 @@ export function App() {
         {/* View Switcher Routing */}
         <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
           {activeView === 'chat' && (
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Dynamic Animated Central Digital Human Presence */}
-              <div className="flex-shrink-0 pt-2 pb-1">
+            <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+              {/* Dynamic Animated Central Digital Human Presence Banner */}
+              <div className="flex-shrink-0">
                 <SylviaPresence
                   sylviaState={sylviaState}
                   health={health}
@@ -166,23 +165,27 @@ export function App() {
               </div>
 
               {/* Streaming Conversation & Tool Logs */}
-              <ChatPanel
-                messages={chatMessages}
-                onApproveAction={approveAction}
-                onCancelAction={cancelAction}
-              />
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <ChatPanel
+                  messages={chatMessages}
+                  onApproveAction={approveAction}
+                  onCancelAction={cancelAction}
+                />
+              </div>
 
               {/* Console Input Bar */}
-              <CommandBar
-                onSendMessage={handleSendMessage}
-                sylviaState={sylviaState}
-                isListening={isListening}
-                onToggleListening={handleToggleListening}
-                voiceOutputEnabled={voiceOutputEnabled}
-                onToggleVoiceOutput={toggleVoiceOutput}
-                audioLevel={audioLevel}
-                transcript={transcript}
-              />
+              <div className="flex-shrink-0">
+                <CommandBar
+                  onSendMessage={handleSendMessage}
+                  sylviaState={sylviaState}
+                  isListening={isListening}
+                  onToggleListening={handleToggleListening}
+                  voiceOutputEnabled={voiceOutputEnabled}
+                  onToggleVoiceOutput={toggleVoiceOutput}
+                  audioLevel={audioLevel}
+                  transcript={transcript}
+                />
+              </div>
             </div>
           )}
 
@@ -266,17 +269,6 @@ export function App() {
             onAddDecisionRule={addDecisionRule}
             onAddContextMemory={addContextMemory}
             onOpenFullMissionControl={() => setActiveView('mission-control')}
-          />
-        </div>
-      )}
-
-      {/* Floating High-Priority Human Approval Card for write actions */}
-      {pendingApprovals.length > 0 && activeView === 'chat' && (
-        <div className="fixed bottom-24 right-96 mr-6 z-40 max-w-md w-full animate-bounce-short">
-          <ApprovalCard
-            request={pendingApprovals[0]}
-            onApprove={approveAction}
-            onCancel={cancelAction}
           />
         </div>
       )}

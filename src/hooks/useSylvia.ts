@@ -14,6 +14,7 @@ import {
   ActivityEvent,
   BackendHealth,
   AgentCard,
+  ToolExecution,
 } from '../types';
 import { sylviaApi } from '../services/sylviaApi';
 import {
@@ -54,7 +55,7 @@ export function useSylvia() {
   const [specialists, setSpecialists] = useState<SpecialistAgent[]>(INITIAL_SPECIALISTS);
   const [gmailMessages, setGmailMessages] = useState<GmailMessage[]>(INITIAL_GMAIL_MESSAGES);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(INITIAL_CALENDAR_EVENTS);
-  const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([INITIAL_APPROVAL_REQUEST]);
+  const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([]);
   const [activities, setActivities] = useState<ActivityEvent[]>(INITIAL_ACTIVITIES);
   const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
 
@@ -134,7 +135,7 @@ export function useSylvia() {
   }, []);
 
   /**
-   * Primary Send Message Handler - Orchestrates A2A Dispatch, State Progression & Multi-Agent Animation
+   * Primary Send Message Handler - Calls Live Google ADK Sylvia Backend via A2A Protocol
    */
   const sendMessage = useCallback(async (text: string, onSpeechResponse?: (reply: string) => void) => {
     if (!text.trim()) return;
@@ -149,101 +150,67 @@ export function useSylvia() {
 
     appendChatMessage(userMsg);
     setSylviaState('THINKING');
-    addActivity('Sylvia', `Processing goal: "${text.slice(0, 50)}..."`, 'working');
+    addActivity('Sylvia Root Agent', `Dispatching goal to Google ADK: "${text.slice(0, 50)}..."`, 'working');
 
-    // Simulate multi-agent delegation sequence for hackathon visual demonstration
     const lower = text.toLowerCase();
-    
-    // Step 1: Thinking -> Analyzing
+
+    // Multi-agent routing visualization
     setTimeout(() => {
       setSylviaState('ANALYZING');
-      setDelegationPath(['sylvia_core', 'context_analyst']);
-      setActiveSpecialistNode('context_analyst');
-      addActivity('Context Analyst', 'Evaluating Decision DNA rules & memory precedents', 'info', 'MEMORY_LOOKUP');
-    }, 600);
-
-    // Step 2: Analyzing -> Decision Partner
-    setTimeout(() => {
-      setDelegationPath(['sylvia_core', 'context_analyst', 'decision_partner']);
-      setActiveSpecialistNode('decision_partner');
-      addActivity('Decision Partner', 'Validating constraints against human autonomy rules', 'working', 'TRADEOFF_EVAL');
-    }, 1300);
-
-    // Step 3: Working -> Action Planner / Workspace Specialist
-    setTimeout(() => {
-      setSylviaState('WORKING');
-      if (lower.includes('email') || lower.includes('gmail') || lower.includes('draft') || lower.includes('calendar') || lower.includes('schedule')) {
-        setDelegationPath(['sylvia_core', 'decision_partner', 'workspace_specialist']);
+      if (lower.includes('email') || lower.includes('gmail') || lower.includes('calendar')) {
+        setDelegationPath(['sylvia_core', 'workspace_specialist']);
         setActiveSpecialistNode('workspace_specialist');
         addActivity('Workspace Specialist', 'Accessing Google Workspace ADK tool interfaces', 'working', 'WORKSPACE_TOOL');
-      } else {
-        setDelegationPath(['sylvia_core', 'decision_partner', 'action_planner']);
+      } else if (lower.includes('mission') || lower.includes('goal') || lower.includes('task')) {
+        setDelegationPath(['sylvia_core', 'action_planner']);
         setActiveSpecialistNode('action_planner');
-        addActivity('Action Planner', 'Sequencing actionable mission milestones', 'working', 'PLANNER_TOOL');
+        addActivity('Action Planner', 'Synthesizing mission milestones in ADK', 'working', 'PLANNER_TOOL');
+      } else {
+        setDelegationPath(['sylvia_core', 'context_analyst']);
+        setActiveSpecialistNode('context_analyst');
+        addActivity('Context Analyst', 'Evaluating Decision DNA & Firestore memory in ADK', 'info', 'MEMORY_LOOKUP');
       }
-    }, 2000);
+    }, 400);
 
     try {
       const response = await sylviaApi.sendA2AMessage(text);
-      const assistantText = response.result?.message?.parts?.[0]?.text || "Task processed successfully.";
-      const specialistName = response.result?.message?.agent || 'Sylvia';
+      const assistantText = response.reply || 'Task evaluated and synchronized with Google ADK Sylvia backend.';
+      const specialistName = response.specialist || 'Sylvia';
 
-      setTimeout(() => {
-        setDelegationPath([]);
-        setActiveSpecialistNode(null);
+      setDelegationPath([]);
+      setActiveSpecialistNode(null);
 
-        // Check if an approval or tool execution is needed
-        let pendingApproval: ApprovalRequest | undefined = undefined;
-        let toolExec = undefined;
+      // Check if real tool execution occurred in ADK
+      const toolExec = response.toolExecutions && response.toolExecutions.length > 0 ? response.toolExecutions[0] : undefined;
+      if (toolExec) {
+        addActivity(specialistName, `Executed ADK tool: ${toolExec.action}`, 'success', toolExec.action);
+      }
 
-        if (lower.includes('draft') || lower.includes('reply') || lower.includes('travis') || lower.includes('send')) {
-          setSylviaState('WAITING_FOR_APPROVAL');
-          pendingApproval = {
-            id: generateUniqueId('appr'),
-            actionType: 'GMAIL_DRAFT',
-            title: 'Create Gmail Draft for Travis Vance',
-            description: 'Sylvia drafted a verified response to Travis Vance regarding Q3 Cutover.',
-            recipient: 'travis.vance@techcorp.internal',
-            subject: 'Re: Q3 Architecture Review & Cloud Run Cutover',
-            bodyPreview: `Hi Travis,\n\nI reviewed the staging benchmarks and the zero-error report looks solid. Friday the 15th at 20:00 UTC works as the target cutover window.\n\nLet's run a final pre-flight verification 2 hours prior.\n\nBest regards,\nSylvia Operator`,
-            status: 'WAITING',
-            riskLevel: 'MEDIUM',
-            createdAt: new Date().toISOString(),
-          };
-          setApprovalQueue(prev => [pendingApproval!, ...prev]);
-          addActivity('Sylvia Gate', 'Human approval required for Gmail Draft write action', 'waiting_approval', 'APPROVAL_GATE');
-        } else if (lower.includes('mission') || lower.includes('business') || lower.includes('organize')) {
-          setSylviaState('COMPLETED');
-          toolExec = {
-            id: generateUniqueId('tool'),
-            toolName: 'MISSION' as const,
-            action: 'Business Operations Control mission synchronized',
-            status: 'completed' as const,
-            result: '5 phased milestones mapped',
-          };
-          addActivity('Action Planner', 'Mission updated with 5 active execution steps', 'success', 'MISSION_SYNC');
-          setTimeout(() => setSylviaState('IDLE'), 3500);
-        } else {
-          setSylviaState('COMPLETED');
-          setTimeout(() => setSylviaState('IDLE'), 3000);
-        }
+      // Check for human approval requirement from ADK
+      const pendingApproval = response.approvalRequest;
+      if (pendingApproval) {
+        setSylviaState('WAITING_FOR_APPROVAL');
+        setApprovalQueue(prev => [pendingApproval, ...prev]);
+        addActivity('Sylvia Gate', `Human authorization required for ${pendingApproval.title}`, 'waiting_approval', 'APPROVAL_GATE');
+      } else {
+        setSylviaState('COMPLETED');
+        setTimeout(() => setSylviaState('IDLE'), 3000);
+      }
 
-        const replyMsg: ChatItem = {
-          id: generateUniqueId('reply'),
-          sender: specialistName === 'Sylvia' ? 'sylvia' : 'specialist',
-          specialistName: specialistName === 'Sylvia' ? undefined : specialistName,
-          text: assistantText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          toolExecution: toolExec,
-          approvalRequest: pendingApproval,
-        };
+      const replyMsg: ChatItem = {
+        id: generateUniqueId('reply'),
+        sender: specialistName.toLowerCase() === 'sylvia' ? 'sylvia' : 'specialist',
+        specialistName: specialistName.toLowerCase() === 'sylvia' ? undefined : specialistName,
+        text: assistantText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        toolExecution: toolExec,
+        approvalRequest: pendingApproval,
+      };
 
-        appendChatMessage(replyMsg);
-        if (onSpeechResponse) {
-          onSpeechResponse(assistantText);
-        }
-      }, 2600);
-
+      appendChatMessage(replyMsg);
+      if (onSpeechResponse) {
+        onSpeechResponse(assistantText);
+      }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setSylviaState('ERROR');
@@ -253,11 +220,11 @@ export function useSylvia() {
       const errChatItem: ChatItem = {
         id: generateUniqueId('err'),
         sender: 'sylvia',
-        text: `I encountered an issue communicating with the backend: ${errorMsg}. Switched to local offline resilience.`,
+        text: `ADK Communication Notice: ${errorMsg}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       appendChatMessage(errChatItem);
-      addActivity('System Error', errorMsg, 'error');
+      addActivity('System Alert', errorMsg, 'error');
       setTimeout(() => setSylviaState('IDLE'), 4000);
     }
   }, [addActivity, appendChatMessage]);
