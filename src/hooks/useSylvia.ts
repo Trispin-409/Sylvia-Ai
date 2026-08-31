@@ -157,7 +157,7 @@ export function useSylvia() {
 
     appendChatMessage({ id: generateUniqueId('user'), sender: 'user', text: normalized, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
     setSylviaState('THINKING');
-    addActivity('Sylvia Root Agent', `Dispatching goal to live Google ADK: \"${normalized.slice(0, 60)}${normalized.length > 60 ? '…' : ''}\"`, 'working');
+    addActivity('Sylvia Root Agent', `Dispatching goal to live Google ADK: "${normalized.slice(0, 60)}${normalized.length > 60 ? '…' : ''}"`, 'working');
 
     const lower = normalized.toLowerCase();
     const isWorkspaceRequest = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
@@ -233,10 +233,10 @@ export function useSylvia() {
       const result = await sylviaApi.submitApproval(approval, 'APPROVED');
       if (!result.success) {
         setSylviaState('ERROR');
-        addActivity('Workspace Specialist', 'Gmail write was NOT verified; no success state shown', 'error', 'GMAIL_DRAFT_NOT_VERIFIED', result.error);
+        addActivity('Workspace Specialist', 'Gmail draft creation failed; no success state shown', 'error', 'GMAIL_DRAFT_FAILED', result.error);
         appendChatMessage({
           id: generateUniqueId('approval_err'), sender: 'specialist', specialistName: 'Workspace Specialist',
-          text: `⚠ **Gmail draft not verified.**\n\nThe live ADK response did not return a verified Gmail draft result. **Sylvia will not claim that a draft was created.**\n\n${result.error || result.reply}`,
+          text: `⚠ **Gmail Draft Creation Failed.**\n\nThe live ADK response did not return a successful Gmail draft result with a real draft ID. **Sylvia will not claim that a draft was created.**\n\n${result.error || result.reply}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         });
         window.setTimeout(() => setSylviaState('IDLE'), 5000);
@@ -249,26 +249,30 @@ export function useSylvia() {
         ? { ...message, approvalRequest: { ...message.approvalRequest, status: 'APPROVED' } }
         : message));
 
-      if (result.draft?.verified && result.draft.draftId) {
-        const draft = result.draft;
+      const draft = result.draft;
+      if (draft?.success && draft.draftId) {
         const details = [
           `Draft ID: ${draft.draftId}`,
           draft.messageId ? `Message ID: ${draft.messageId}` : '',
           draft.threadId ? `Thread ID: ${draft.threadId}` : '',
         ].filter(Boolean).join('\n');
-        addActivity('Workspace Specialist', 'Gmail draft created and verified by live ADK/Gmail result', 'success', 'GMAIL_DRAFT_VERIFIED', details);
+        const verificationText = draft.verified
+          ? 'The backend also supplied an explicit verification signal. The email has **NOT** been sent.'
+          : 'The live Gmail tool confirmed creation with a real draft ID, but no separate verification signal was returned. The email has **NOT** been sent.';
+        addActivity(
+          'Workspace Specialist',
+          draft.verified ? 'Gmail draft created and explicitly verified by live ADK/Gmail result' : 'Gmail draft created by live ADK/Gmail result; independent verification unavailable',
+          'success',
+          draft.verified ? 'GMAIL_DRAFT_VERIFIED' : 'GMAIL_DRAFT_CREATED',
+          details,
+        );
         appendChatMessage({
           id: generateUniqueId('conf'), sender: 'specialist', specialistName: 'Workspace Specialist',
-          text: `✓ **Gmail Draft Created & Verified**\n\n**Recipient:** ${draft.recipient || approval.recipient || 'Unknown'}\n\n**Subject:** ${draft.subject || approval.subject || '(No subject)'}\n\n**Draft ID:** \`${draft.draftId}\`\n\n${draft.messageId ? `**Message ID:** \`${draft.messageId}\`\n\n` : ''}${draft.threadId ? `**Thread ID:** \`${draft.threadId}\`\n\n` : ''}The backend provided a verified Gmail result. The email has **NOT** been sent.`,
+          text: draft.verified
+            ? `✓ **Gmail Draft Created & Verified**\n\n**Recipient:** ${draft.recipient || approval.recipient || 'Unknown'}\n\n**Subject:** ${draft.subject || approval.subject || '(No subject)'}\n\n**Draft ID:** \`${draft.draftId}\`\n\n${draft.messageId ? `**Message ID:** \`${draft.messageId}\`\n\n` : ''}${draft.threadId ? `**Thread ID:** \`${draft.threadId}\`\n\n` : ''}${verificationText}`
+            : `✓ **Gmail Draft Created**\n\n**Recipient:** ${draft.recipient || approval.recipient || 'Unknown'}\n\n**Subject:** ${draft.subject || approval.subject || '(No subject)'}\n\n**Draft ID:** \`${draft.draftId}\`\n\n${draft.messageId ? `**Message ID:** \`${draft.messageId}\`\n\n` : ''}${draft.threadId ? `**Thread ID:** \`${draft.threadId}\`\n\n` : ''}**Verification:** Not independently available.\n\n${verificationText}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           toolExecution: result.toolExecutions.find(tool => tool.toolName === 'GMAIL'),
-        });
-      } else {
-        addActivity('Workspace Specialist', 'Backend acknowledged approval but did not provide verified draft data', 'error', 'GMAIL_DRAFT_NOT_VERIFIED');
-        appendChatMessage({
-          id: generateUniqueId('verification_err'), sender: 'specialist', specialistName: 'Workspace Specialist',
-          text: '⚠ **Draft creation is not verified.** The backend response did not provide a verified Gmail draft ID, so Sylvia will not state that the draft exists in Gmail.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         });
       }
 
@@ -318,7 +322,7 @@ export function useSylvia() {
   const addDecisionRule = useCallback((rule: string) => {
     if (!rule.trim()) return;
     setDecisionDNA(prev => ({ ...prev, decisionRules: [...prev.decisionRules, rule.trim()] }));
-    addActivity('Decision Partner', `Decision rule registered: \"${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}\"`, 'success');
+    addActivity('Decision Partner', `Decision rule registered: "${rule.slice(0, 60)}${rule.length > 60 ? '…' : ''}"`, 'success');
   }, [addActivity]);
 
   const addContextMemory = useCallback((key: string, summary: string, details: string, category: ContextMemory['category']) => {
