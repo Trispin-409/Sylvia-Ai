@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSylvia } from './hooks/useSylvia';
 import { useVoice } from './hooks/useVoice';
 import { StarField } from './components/StarField';
@@ -98,9 +98,6 @@ export function App() {
       lower.includes('meeting') ||
       lower.includes('schedule');
 
-    // Workspace commands open the relevant live workspace panel while the request
-    // continues through the same A2A session. This keeps the UI aligned with the
-    // real ADK Workspace Specialist instead of leaving the user in a generic chat.
     if (isWorkspaceRequest) {
       if (lower.includes('calendar') || lower.includes('meeting') || lower.includes('schedule')) {
         setActiveView('workspace-calendar');
@@ -182,6 +179,7 @@ export function App() {
               pendingApprovals={pendingApprovals}
               onApproveAction={approveAction}
               onCancelAction={cancelAction}
+              workspaceHealth={health.workspace}
             />
           )}
 
