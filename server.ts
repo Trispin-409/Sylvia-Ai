@@ -8,8 +8,6 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 
-// Public Google ADK Sylvia A2A backend. Override for another deployment with
-// SYLVIA_BACKEND_URL (server-side) or VITE_SYLVIA_API_URL (build/runtime config).
 const LIVE_ADK_BACKEND = (
   process.env.SYLVIA_BACKEND_URL ||
   process.env.VITE_SYLVIA_API_URL ||
@@ -18,8 +16,6 @@ const LIVE_ADK_BACKEND = (
 
 app.use(express.json({ limit: '10mb' }));
 
-// The browser normally talks to this same-origin server. Keeping the proxy here
-// avoids browser CORS problems and keeps backend configuration out of UI code.
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -67,7 +63,7 @@ app.get('/api/health', async (_req, res) => {
     try {
       body = await response.json();
     } catch {
-      // Health remains valid only from the HTTP response below.
+      // Health remains valid from the HTTP status alone.
     }
 
     const connected = response.ok;
@@ -92,35 +88,6 @@ app.get('/api/health', async (_req, res) => {
       a2aEndpoint: `${LIVE_ADK_BACKEND}/a2a/app`,
       timestamp: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
-
-/**
- * Optional on-demand Workspace authentication probe.
- * This invokes the real Workspace Specialist only when explicitly requested;
- * it is never used by the periodic backend health timer.
- */
-app.get('/api/workspace-health', async (_req, res) => {
-  try {
-    const body = buildA2AMessage(
-      'Use the real workspace_health_check tool. Return the structured result only. Do not create, modify, draft, or send anything.'
-    );
-    const response = await fetch(`${LIVE_ADK_BACKEND}/a2a/app`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const responseData = await response.json().catch(() => null);
-    return res.status(response.status).json(responseData ?? {
-      error: { code: -32000, message: `ADK backend returned HTTP ${response.status}` },
-    });
-  } catch (err: unknown) {
-    return res.status(502).json({
-      error: {
-        code: -32603,
-        message: err instanceof Error ? err.message : String(err),
-      },
     });
   }
 });
@@ -183,7 +150,6 @@ const handleA2AProxy = async (req: express.Request, res: express.Response) => {
 app.post('/a2a/app', handleA2AProxy);
 app.post('/api/a2a/app', handleA2AProxy);
 
-// Convenience endpoint for simple clients. The UI itself uses the native A2A route.
 app.post('/api/agent/chat', async (req, res) => {
   const { message, contextId } = req.body || {};
   if (!message || typeof message !== 'string') {
