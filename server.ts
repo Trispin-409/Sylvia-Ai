@@ -43,56 +43,84 @@ const buildA2AMessage = (text: string, contextId?: string) => ({
 });
 
 /**
- * Real ADK connectivity probe.
- * The A2A server does not expose health/check, so use the supported
- * message/send method instead of treating a JSON-RPC -32601 response as healthy.
+ * Lightweight production health probe.
+ * Cloud Run/ADK exposes GET /health without invoking an LLM or A2A task.
+ * Workspace authentication is intentionally not inferred from this endpoint.
  */
 app.get('/api/health', async (_req, res) => {
   const started = Date.now();
+  const healthUrl = `${LIVE_ADK_BACKEND}/health`;
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`${LIVE_ADK_BACKEND}/a2a/app`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(buildA2AMessage('Respond with exactly: SYLVIA_HEALTH_OK')),
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
-    let body: any = null;
+    let body: unknown = null;
     try {
       body = await response.json();
     } catch {
-      // handled below
+      // Health remains valid only from the HTTP response below.
     }
 
-    const rpcOk = !body?.error && Boolean(body?.result);
-    const connected = response.ok && rpcOk;
-
+    const connected = response.ok;
     return res.status(connected ? 200 : 503).json({
       status: connected ? 'ok' : 'degraded',
-      mode: 'ADK_A2A_PROXY',
+      mode: 'CLOUD_RUN_HEALTH',
       liveAdkBackend: LIVE_ADK_BACKEND,
       adkStatus: connected ? 'connected' : 'offline',
+      backendHealth: body,
       latencyMs: Date.now() - started,
       a2aEndpoint: `${LIVE_ADK_BACKEND}/a2a/app`,
       timestamp: new Date().toISOString(),
-      error: connected ? undefined : (body?.error?.message || `ADK HTTP ${response.status}`),
+      error: connected ? undefined : `ADK health endpoint returned HTTP ${response.status}`,
     });
   } catch (err: unknown) {
     return res.status(503).json({
       status: 'degraded',
-      mode: 'ADK_A2A_PROXY',
+      mode: 'CLOUD_RUN_HEALTH',
       liveAdkBackend: LIVE_ADK_BACKEND,
       adkStatus: 'offline',
       latencyMs: Date.now() - started,
       a2aEndpoint: `${LIVE_ADK_BACKEND}/a2a/app`,
       timestamp: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+/**
+ * Optional on-demand Workspace authentication probe.
+ * This invokes the real Workspace Specialist only when explicitly requested;
+ * it is never used by the periodic backend health timer.
+ */
+app.get('/api/workspace-health', async (_req, res) => {
+  try {
+    const body = buildA2AMessage(
+      'Use the real workspace_health_check tool. Return the structured result only. Do not create, modify, draft, or send anything.'
+    );
+    const response = await fetch(`${LIVE_ADK_BACKEND}/a2a/app`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const responseData = await response.json().catch(() => null);
+    return res.status(response.status).json(responseData ?? {
+      error: { code: -32000, message: `ADK backend returned HTTP ${response.status}` },
+    });
+  } catch (err: unknown) {
+    return res.status(502).json({
+      error: {
+        code: -32603,
+        message: err instanceof Error ? err.message : String(err),
+      },
     });
   }
 });
@@ -121,7 +149,7 @@ const handleA2AProxy = async (req: express.Request, res: express.Response) => {
     clearTimeout(timeout);
 
     const responseText = await response.text();
-    let responseData: any;
+    let responseData: unknown;
     try {
       responseData = JSON.parse(responseText);
     } catch {
