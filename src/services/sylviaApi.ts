@@ -7,6 +7,7 @@ import {
   GmailDraftResult,
   GmailMessage,
   ToolExecution,
+  WorkspaceHealth,
 } from '../types';
 
 export interface ParsedADKResponse {
@@ -89,38 +90,67 @@ class SylviaApiService {
       const response = await fetch('/api/health', { method: 'GET', headers: { Accept: 'application/json' } });
       const data = await response.json().catch(() => null);
       const latencyMs = Math.round(performance.now() - startTime);
-      if (response.ok && data?.adkStatus === 'connected') {
-        return {
-          connected: true, status: 'ok', backendUrl: data.liveAdkBackend || this.backendUrl, latencyMs,
-          lastChecked: new Date().toISOString(), adkConnected: true,
-          a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live Backend)', isDemoMode: false,
-        };
-      }
-    } catch {
-      // Direct probe below.
-    }
-    try {
-      const response = await this.postA2A({
-        jsonrpc: '2.0', id: 'health_check', method: 'message/send',
-        params: { message: { messageId: `health_${Date.now()}`, role: 'user', parts: [{ text: 'Respond with exactly: SYLVIA_HEALTH_OK' }] } },
-      });
-      const latencyMs = Math.round(performance.now() - startTime);
-      const connected = !response?.error && Boolean(response?.result);
       return {
-        connected, status: connected ? 'ok' : 'degraded', backendUrl: this.backendUrl, latencyMs,
-        lastChecked: new Date().toISOString(), adkConnected: connected,
-        a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live)', isDemoMode: false,
-        error: connected ? undefined : (response?.error?.message || 'ADK health probe failed'),
+        connected: Boolean(response.ok && data?.adkStatus === 'connected'),
+        status: response.ok && data?.adkStatus === 'connected' ? 'ok' : 'degraded',
+        backendUrl: data?.liveAdkBackend || this.backendUrl,
+        latencyMs,
+        lastChecked: new Date().toISOString(),
+        adkConnected: Boolean(response.ok && data?.adkStatus === 'connected'),
+        a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live Backend)',
+        isDemoMode: false,
+        error: response.ok && data?.adkStatus === 'connected' ? undefined : (data?.error || `ADK health endpoint returned HTTP ${response.status}`),
       };
     } catch (err: unknown) {
       return {
-        connected: false, status: 'offline', backendUrl: this.backendUrl, lastChecked: new Date().toISOString(),
-        adkConnected: false, isDemoMode: false, error: err instanceof Error ? err.message : String(err),
+        connected: false,
+        status: 'offline',
+        backendUrl: this.backendUrl,
+        lastChecked: new Date().toISOString(),
+        adkConnected: false,
+        isDemoMode: false,
+        error: err instanceof Error ? err.message : String(err),
       };
     }
   }
 
+  /**
+   * Explicit/on-demand Workspace check. This is separate from periodic backend
+   * health so the UI never spends an LLM request just to test Cloud Run uptime.
+   */
+  public async checkWorkspaceHealth(): Promise<WorkspaceHealth> {
+    const response = await this.postA2A({
+      jsonrpc: '2.0', id: `workspace_health_${Date.now()}`, method: 'message/send',
+      params: {
+        ...(this.currentContextId ? { contextId: this.currentContextId } : {}),
+        message: {
+          messageId: `workspace_health_msg_${Date.now()}`,
+          role: 'user',
+          parts: [{ text: 'Use the real workspace_health_check tool. Return the structured tool result. Do not create, modify, draft, or send anything.' }],
+        },
+      },
+    });
+    if (response?.error) throw new Error(response.error.message || 'Workspace health request failed.');
+    const parsed = this.parseADKResponse(response);
+    const raw = parsed.workspaceResult as any;
+    if (!raw || typeof raw !== 'object' || typeof raw.authenticated !== 'boolean') {
+      throw new Error('Workspace health response was not returned by the real workspace_health_check tool.');
+    }
+    return {
+      source: 'backend',
+      authenticated: Boolean(raw.authenticated),
+      gmailConnected: Boolean(raw.gmail?.connected),
+      gmailEmail: raw.gmail?.email ? String(raw.gmail.email) : undefined,
+      calendarConnected: Boolean(raw.calendar?.connected),
+      calendarCount: raw.calendar?.calendar_count != null ? Number(raw.calendar.calendar_count) : undefined,
+      error: String(raw.gmail?.error || raw.calendar?.error || '') || undefined,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
   public async getAgentCard(): Promise<AgentCard> {
+    // Capability descriptions are UI metadata only. Live Workspace status is shown
+    // separately and is never inferred from this static capability map.
     return {
       name: 'SYLVIA',
       description: 'Collaborative Digital Operator running on Google ADK with Root Agent, Context Analyst, Decision Partner, Action Planner, and Workspace Specialist.',
@@ -153,9 +183,6 @@ class SylviaApiService {
     if (body?.error) throw new Error(body.error.message || `A2A error (${body.error.code})`);
     const parsed = this.parseADKResponse(body);
 
-    // A natural-language claim is not evidence of a Workspace operation.
-    // For read requests, require at least one real tool response before displaying
-    // the agent's Gmail/Calendar facts as authoritative UI data.
     if (workspaceIntent && !parsed.approvalRequest) {
       const gmailRead = /gmail|email|inbox/.test(lower);
       const calendarRead = /calendar|meeting|schedule/.test(lower);
@@ -173,7 +200,7 @@ class SylviaApiService {
     if (!value || typeof value !== 'object') return null;
     const rawFrom = String(value.from || value.sender || '');
     const match = rawFrom.match(/<([^>]+)>/);
-    const id = String(value.id || value.messageId || '').trim();
+    const id = String(value.id || value.messageId || value.message_id || '').trim();
     if (!id) return null;
     const senderEmail = String(value.senderEmail || value.from_email || match?.[1] || '');
     const sender = String(value.sender || (match ? rawFrom.replace(match[0], '').trim() : rawFrom) || senderEmail || 'Unknown sender');
@@ -185,7 +212,7 @@ class SylviaApiService {
       subject: String(value.subject || '(No subject)'),
       preview: String(value.snippet || value.preview || value.body || ''),
       body: value.body ? String(value.body) : undefined,
-      date: String(value.date || value.internal_date || 'Unknown date'),
+      date: String(value.date || value.internal_date || value.internalDate || 'Unknown date'),
       unread: Boolean(value.unread ?? (Array.isArray(value.labels) && value.labels.includes('UNREAD'))),
       requiresReply: typeof value.requiresReply === 'boolean' ? value.requiresReply : typeof value.requires_reply === 'boolean' ? value.requires_reply : undefined,
       labels: Array.isArray(value.labels) ? value.labels.map(String) : undefined,
@@ -211,17 +238,33 @@ class SylviaApiService {
 
   private extractFunctionData(result: any): Array<{ kind: 'call' | 'response'; id?: string; name?: string; data: any; metadata: any }> {
     const output: Array<{ kind: 'call' | 'response'; id?: string; name?: string; data: any; metadata: any }> = [];
-    for (const item of Array.isArray(result?.history) ? result.history : []) {
-      for (const part of Array.isArray(item?.parts) ? item.parts : []) {
+    const histories = Array.isArray(result?.history) ? result.history : [];
+    for (const item of histories) {
+      const parts = Array.isArray(item?.parts) ? item.parts : [];
+      for (const part of parts) {
         const data = part?.data;
         if (!data || typeof data !== 'object') continue;
         const metadata = part?.metadata || {};
-        const type = String(metadata.adk_type || data.adk_type || '');
+        const type = String(metadata.adk_type || metadata.adkType || data.adk_type || data.adkType || '').toLowerCase();
         if (type !== 'function_call' && type !== 'function_response') continue;
-        output.push({ kind: type === 'function_call' ? 'call' : 'response', id: data.id ? String(data.id) : undefined, name: data.name ? String(data.name) : undefined, data, metadata });
+        output.push({
+          kind: type === 'function_call' ? 'call' : 'response',
+          id: data.id != null ? String(data.id) : undefined,
+          name: data.name != null ? String(data.name) : undefined,
+          data,
+          metadata,
+        });
       }
     }
     return output;
+  }
+
+  private unwrapToolResponse(data: any): Record<string, unknown> | undefined {
+    if (!data || typeof data !== 'object') return undefined;
+    if (data.response && typeof data.response === 'object') return data.response as Record<string, unknown>;
+    if (data.result && typeof data.result === 'object') return data.result as Record<string, unknown>;
+    if (data.data && typeof data.data === 'object') return data.data as Record<string, unknown>;
+    return data as Record<string, unknown>;
   }
 
   private parseADKResponse(adkJson: any): ParsedADKResponse {
@@ -256,13 +299,13 @@ class SylviaApiService {
     for (const item of functionData) {
       if (item.kind !== 'call' || item.name === 'adk_request_confirmation') continue;
       const response = item.id ? responseById.get(item.id) : undefined;
-      const responseBody = response?.response;
+      const responseBody = this.unwrapToolResponse(response);
       const toolName = item.name || 'adk_tool';
       let category: ToolExecution['toolName'] = 'SPECIALIST';
-      if (toolName.includes('gmail') || toolName.includes('email')) category = 'GMAIL';
-      else if (toolName.includes('calendar') || toolName.includes('schedule')) category = 'CALENDAR';
-      else if (toolName.includes('mission') || toolName.includes('step')) category = 'MISSION';
-      else if (toolName.includes('memory') || toolName.includes('dna')) category = 'MEMORY';
+      if (toolName.toLowerCase().includes('gmail') || toolName.toLowerCase().includes('email')) category = 'GMAIL';
+      else if (toolName.toLowerCase().includes('calendar') || toolName.toLowerCase().includes('schedule')) category = 'CALENDAR';
+      else if (toolName.toLowerCase().includes('mission') || toolName.toLowerCase().includes('step')) category = 'MISSION';
+      else if (toolName.toLowerCase().includes('memory') || toolName.toLowerCase().includes('dna')) category = 'MEMORY';
       const failed = Boolean(responseBody?.error) || Boolean(response?.error);
       toolExecutions.push({
         id: item.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -270,19 +313,23 @@ class SylviaApiService {
         action: toolName.replace(/_/g, ' ').toUpperCase(),
         status: failed ? 'failed' : response ? 'completed' : 'running',
         result: responseBody ? JSON.stringify(responseBody).slice(0, 1200) : undefined,
-        details: responseBody && typeof responseBody === 'object' ? responseBody : item.data?.args,
+        details: responseBody || item.data?.args,
       });
 
-      if (category === 'GMAIL' && responseBody && typeof responseBody === 'object') {
-        workspaceResult = responseBody as Record<string, unknown>;
+      if (toolName === 'workspace_health_check' && responseBody) {
+        workspaceResult = responseBody;
+      }
+
+      if (category === 'GMAIL' && responseBody) {
+        workspaceResult = responseBody;
         const rawMessages = Array.isArray(responseBody.messages) ? responseBody.messages : Array.isArray(responseBody.emails) ? responseBody.emails : [];
         for (const raw of rawMessages) {
           const parsed = this.parseGmailMessage(raw);
           if (parsed) gmailMessages.push(parsed);
         }
       }
-      if (category === 'CALENDAR' && responseBody && typeof responseBody === 'object') {
-        workspaceResult = responseBody as Record<string, unknown>;
+      if (category === 'CALENDAR' && responseBody) {
+        workspaceResult = responseBody;
         for (const raw of Array.isArray(responseBody.events) ? responseBody.events : []) {
           const parsed = this.parseCalendarEvent(raw);
           if (parsed) calendarEvents.push(parsed);
@@ -298,8 +345,8 @@ class SylviaApiService {
       const confirmation = args.toolConfirmation || {};
       const originalName = String(original.name || 'WORKSPACE_WRITE');
       let actionType: ApprovalRequest['actionType'] = 'WORKSPACE_WRITE';
-      if (originalName.includes('gmail')) actionType = originalName.includes('send') ? 'GMAIL_SEND' : 'GMAIL_DRAFT';
-      else if (originalName.includes('calendar') || originalName.includes('schedule')) actionType = 'CALENDAR_CREATE';
+      if (originalName.toLowerCase().includes('gmail')) actionType = originalName.toLowerCase().includes('send') ? 'GMAIL_SEND' : 'GMAIL_DRAFT';
+      else if (originalName.toLowerCase().includes('calendar') || originalName.toLowerCase().includes('schedule')) actionType = 'CALENDAR_CREATE';
       const originalArgs = original.args || {};
       const contextId = result.contextId ? String(result.contextId) : this.currentContextId || undefined;
       const taskId = result.id ? String(result.id) : this.currentTaskId || undefined;
@@ -376,7 +423,8 @@ class SylviaApiService {
       const parsed = this.parseADKResponse(body);
       const gmailTool = parsed.toolExecutions.find(tool => tool.toolName === 'GMAIL' && tool.status === 'completed');
       const raw = parsed.workspaceResult || {};
-      const rawDraft = raw.draft && typeof raw.draft === 'object' ? raw.draft as Record<string, unknown> : raw;
+      const rawDraftCandidate = raw.draft && typeof raw.draft === 'object' ? raw.draft as Record<string, unknown> : raw;
+      const rawDraft = rawDraftCandidate.result && typeof rawDraftCandidate.result === 'object' ? rawDraftCandidate.result as Record<string, unknown> : rawDraftCandidate;
       const draftId = rawDraft.draftId || rawDraft.draft_id || (rawDraft.id && approval.actionType === 'GMAIL_DRAFT' ? rawDraft.id : undefined);
       const messageId = rawDraft.messageId || rawDraft.message_id;
       const threadId = rawDraft.threadId || rawDraft.thread_id;
@@ -393,12 +441,12 @@ class SylviaApiService {
         error: !operationSuccess ? String(raw.error || rawDraft.error || '') || undefined : undefined,
       } : undefined;
       const success = decision === 'CANCELLED'
-        ? Boolean(parsed.rawAdkResult) && !parsed.toolExecutions.some(tool => tool.status === 'completed' && tool.toolName === 'GMAIL')
+        ? Boolean((parsed.rawAdkResult as any)?.status?.state === 'completed') && !parsed.approvalRequest && !parsed.toolExecutions.some(tool => tool.status === 'completed' && tool.toolName === 'GMAIL')
         : Boolean(gmailTool && draft?.success && draft.draftId && draft.verified);
       return {
         success, decision, reply: parsed.reply, toolExecutions: parsed.toolExecutions, draft, rawAdkResult: parsed.rawAdkResult,
         error: success ? undefined : decision === 'CANCELLED'
-          ? 'The cancellation could not be confirmed by the live ADK response.'
+          ? 'The cancellation could not be confirmed by the live ADK backend.'
           : 'The live ADK response did not provide a verified Gmail draft result. The UI will not claim that a draft was created.',
       };
     } catch (err: unknown) {
