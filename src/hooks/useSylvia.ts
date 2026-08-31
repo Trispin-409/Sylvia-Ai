@@ -43,11 +43,9 @@ export function useSylvia() {
   const [contextMemories, setContextMemories] = useState<ContextMemory[]>(INITIAL_CONTEXT_MEMORIES);
   const [specialists, setSpecialists] = useState<SpecialistAgent[]>(INITIAL_SPECIALISTS);
 
-  // Live Workspace state is intentionally empty at startup. Only real ADK tool output populates it.
   const [gmailMessages, setGmailMessages] = useState<GmailMessage[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([]);
-  // Activity feed starts empty: no pre-seeded Workspace actions are presented as real events.
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
   const [health, setHealth] = useState<BackendHealth>({
@@ -75,11 +73,9 @@ export function useSylvia() {
 
   const checkSystemHealth = useCallback(async () => {
     try {
-      // Lightweight HTTP health probe; it does not invoke the model.
       const healthResult = await sylviaApi.checkHealth();
       setHealth(prev => ({ ...healthResult, workspace: prev.workspace }));
       setAgentCard(await sylviaApi.getAgentCard());
-      if (healthResult.connected) addActivity('Sylvia Core', `Connected to live ADK backend at ${healthResult.backendUrl}`, 'success');
     } catch (error) {
       addActivity('System Alert', `Health check failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
@@ -119,11 +115,21 @@ export function useSylvia() {
   const refreshWorkspaceHealth = useCallback(async () => {
     try {
       const workspace = await sylviaApi.checkWorkspaceHealth();
-      applyBackendWorkspaceHealth(workspace as unknown as Record<string, unknown>);
+      setHealth(prev => ({ ...prev, workspace }));
+      setSpecialists(prev => prev.map(specialist => specialist.id === 'workspace_specialist'
+        ? { ...specialist, connected: workspace.gmailConnected || workspace.calendarConnected, status: workspace.gmailConnected || workspace.calendarConnected ? 'online' : 'idle' }
+        : specialist));
+      addActivity(
+        'Workspace Specialist',
+        `Workspace health returned by backend: Gmail ${workspace.gmailConnected ? 'connected' : 'not connected'}, Calendar ${workspace.calendarConnected ? 'connected' : 'not connected'}`,
+        workspace.authenticated && !workspace.error ? 'success' : 'error',
+        'WORKSPACE_HEALTH',
+        workspace.gmailEmail || workspace.error,
+      );
     } catch (error) {
       addActivity('Workspace Specialist', `Workspace health check failed: ${error instanceof Error ? error.message : String(error)}`, 'error', 'WORKSPACE_HEALTH');
     }
-  }, [addActivity, applyBackendWorkspaceHealth]);
+  }, [addActivity]);
 
   useEffect(() => {
     void checkSystemHealth();
