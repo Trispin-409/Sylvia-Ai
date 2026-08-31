@@ -50,12 +50,40 @@ class SylviaApiService {
   }
 
   /**
-   * Health check verifying live Google ADK Sylvia backend connectivity
+   * Detect requests that must be handled by a real connected Workspace Specialist.
+   * This prevents the root agent from answering with a generic "I don't have email"
+   * response when the deployed ADK backend already exposes Gmail tools.
+   */
+  private buildAgentRequest(userMessage: string): string {
+    const lower = userMessage.toLowerCase();
+    const workspaceIntent =
+      lower.includes('gmail') ||
+      lower.includes('email') ||
+      lower.includes('inbox') ||
+      lower.includes('calendar') ||
+      lower.includes('meeting') ||
+      lower.includes('schedule');
+
+    if (!workspaceIntent) return userMessage;
+
+    return [
+      'WORKSPACE OPERATION REQUEST.',
+      'Route this request to the Workspace Specialist and use the connected Google Workspace tools when available.',
+      'Do not claim that Gmail or Calendar access is unavailable if the Workspace tools are connected.',
+      'For read requests, actually inspect the connected data and return the relevant records.',
+      'For write requests, prepare the action and stop at the human approval gate; never send or mutate without explicit approval.',
+      `USER REQUEST: ${userMessage}`,
+    ].join('\n');
+  }
+
+  /**
+   * Health check verifying live Google ADK Sylvia backend connectivity.
+   * The local same-origin proxy is preferred so the browser never needs direct
+   * access to the Cloud Run service.
    */
   public async checkHealth(): Promise<BackendHealth> {
     const startTime = performance.now();
 
-    // First try the local proxy endpoint
     try {
       const response = await fetch('/api/health', {
         method: 'GET',
@@ -63,52 +91,61 @@ class SylviaApiService {
       });
 
       const latencyMs = Math.round(performance.now() - startTime);
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        // handled below
+      }
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.ok && data?.adkStatus === 'connected') {
         return {
           connected: true,
           status: 'ok',
-          backendUrl: this.backendUrl,
+          backendUrl: data.liveAdkBackend || this.backendUrl,
           latencyMs,
           lastChecked: new Date().toISOString(),
           adkConnected: true,
           a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live Backend)',
+          isDemoMode: false,
         };
       }
     } catch {
-      // Fall through to direct backend health check
+      // Fall through to direct backend probe.
     }
 
-    // Direct check to live Google ADK Sylvia backend
     try {
       const directResponse = await fetch(`${this.backendUrl}/a2a/app`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 'health_check',
           method: 'message/send',
           params: {
             message: {
-              messageId: 'health_probe',
+              messageId: `health_${Date.now()}`,
               role: 'user',
-              parts: [{ text: 'ping' }],
+              parts: [{ text: 'Respond with exactly: SYLVIA_HEALTH_OK' }],
             },
           },
         }),
       });
 
       const latencyMs = Math.round(performance.now() - startTime);
+      const responseBody = await directResponse.json().catch(() => null);
+      const rpcConnected = directResponse.ok && !responseBody?.error && Boolean(responseBody?.result);
 
       return {
-        connected: directResponse.status < 500,
-        status: directResponse.status < 500 ? 'ok' : 'degraded',
+        connected: rpcConnected,
+        status: rpcConnected ? 'ok' : 'degraded',
         backendUrl: this.backendUrl,
         latencyMs,
         lastChecked: new Date().toISOString(),
-        adkConnected: directResponse.status < 500,
+        adkConnected: rpcConnected,
         a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live)',
+        isDemoMode: false,
+        error: rpcConnected ? undefined : (responseBody?.error?.message || `ADK HTTP ${directResponse.status}`),
       };
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to reach ADK backend';
@@ -118,14 +155,12 @@ class SylviaApiService {
         backendUrl: this.backendUrl,
         lastChecked: new Date().toISOString(),
         adkConnected: false,
+        isDemoMode: false,
         error: errorMsg,
       };
     }
   }
 
-  /**
-   * Fetch Sylvia Agent Card describing the authentic Google ADK specialists and tools
-   */
   public async getAgentCard(): Promise<AgentCard> {
     return {
       name: 'SYLVIA',
@@ -159,9 +194,12 @@ class SylviaApiService {
   }
 
   /**
-   * Primary A2A Protocol Send Message - Sends JSON-RPC 2.0 to Live Google ADK Sylvia Backend
+   * Primary A2A Protocol Send Message.
+   * Workspace requests are explicitly routed to the Workspace Specialist while
+   * ordinary requests are passed through unchanged.
    */
   public async sendA2AMessage(userMessage: string): Promise<ParsedADKResponse> {
+    const agentRequest = this.buildAgentRequest(userMessage);
     const payload = {
       jsonrpc: '2.0',
       id: Date.now(),
@@ -171,39 +209,40 @@ class SylviaApiService {
         message: {
           messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
           role: 'user',
-          parts: [{ text: userMessage }],
+          parts: [{ text: agentRequest }],
         },
       },
     };
 
     let rawJson: any = null;
 
-    // Strategy 1: Post through our server proxy /a2a/app
+    // Strategy 1: same-origin server proxy.
     try {
       const proxyRes = await fetch('/a2a/app', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (proxyRes.ok) {
-        rawJson = await proxyRes.json();
+      const responseText = await proxyRes.text();
+      try {
+        rawJson = JSON.parse(responseText);
+      } catch {
+        rawJson = null;
       }
-    } catch {
-      // Proxy attempt failed, try direct
+
+      if (!proxyRes.ok && rawJson?.error) {
+        throw new Error(rawJson.error.message || `A2A proxy returned HTTP ${proxyRes.status}`);
+      }
+    } catch (proxyError) {
+      // Strategy 2 below is the direct fallback for local development.
+      console.warn('[Sylvia] Same-origin A2A proxy failed; trying direct backend.', proxyError);
     }
 
-    // Strategy 2: Direct call to live ADK Sylvia backend
     if (!rawJson || rawJson.error) {
       const directRes = await fetch(`${this.backendUrl}/a2a/app`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -222,32 +261,21 @@ class SylviaApiService {
     return this.parseADKResponse(rawJson);
   }
 
-  /**
-   * Parse the authentic Google ADK JSON-RPC response into structured UI data
-   */
   private parseADKResponse(adkJson: any): ParsedADKResponse {
     const result = adkJson.result || {};
 
-    // 1. Update Context ID for continuous conversation
-    if (result.contextId) {
-      this.currentContextId = result.contextId;
-    }
+    if (result.contextId) this.currentContextId = result.contextId;
 
-    // 2. Extract Response Text
     let replyText = '';
 
-    // Primary: artifacts[0].parts[0].text
     if (result.artifacts && result.artifacts.length > 0) {
       const art = result.artifacts[0];
       if (art.parts && art.parts.length > 0) {
         const textPart = art.parts.find((p: any) => p.kind === 'text' || p.text);
-        if (textPart) {
-          replyText = textPart.text || textPart.content || '';
-        }
+        if (textPart) replyText = textPart.text || textPart.content || '';
       }
     }
 
-    // Secondary: Search history for final agent text
     if (!replyText && Array.isArray(result.history)) {
       for (let i = result.history.length - 1; i >= 0; i--) {
         const item = result.history[i];
@@ -263,16 +291,9 @@ class SylviaApiService {
       }
     }
 
-    // Fallback: direct message
-    if (!replyText && result.message?.parts?.[0]?.text) {
-      replyText = result.message.parts[0].text;
-    }
+    if (!replyText && result.message?.parts?.[0]?.text) replyText = result.message.parts[0].text;
+    if (!replyText) replyText = 'Task evaluated and synchronized with Google ADK Sylvia backend.';
 
-    if (!replyText) {
-      replyText = 'Task evaluated and synchronized with Google ADK Sylvia backend.';
-    }
-
-    // 3. Extract Real ADK Tool Calls from History
     const toolExecutions: ToolExecution[] = [];
     let specialistName = 'Sylvia';
 
@@ -283,36 +304,32 @@ class SylviaApiService {
 
     if (Array.isArray(result.history)) {
       for (const item of result.history) {
-        if (Array.isArray(item.parts)) {
-          for (const part of item.parts) {
-            // Check for ADK function_call
-            if (part.metadata?.adk_type === 'function_call' && part.data) {
-              const toolName = part.data.name || 'adk_tool';
-              const args = part.data.args || {};
+        if (!Array.isArray(item.parts)) continue;
+        for (const part of item.parts) {
+          if (part.metadata?.adk_type !== 'function_call' || !part.data) continue;
 
-              // Map tool names to categories
-              let toolCategory: ToolExecution['toolName'] = 'SPECIALIST';
-              if (toolName.includes('gmail') || toolName.includes('email')) toolCategory = 'GMAIL';
-              else if (toolName.includes('calendar') || toolName.includes('schedule')) toolCategory = 'CALENDAR';
-              else if (toolName.includes('mission') || toolName.includes('step')) toolCategory = 'MISSION';
-              else if (toolName.includes('memory') || toolName.includes('dna')) toolCategory = 'MEMORY';
+          const toolName = String(part.data.name || 'adk_tool');
+          const args = part.data.args || {};
+          let toolCategory: ToolExecution['toolName'] = 'SPECIALIST';
 
-              toolExecutions.push({
-                id: `tool_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-                toolName: toolCategory,
-                action: toolName.replace(/_/g, ' ').toUpperCase(),
-                status: 'completed',
-                result: JSON.stringify(args).slice(0, 100),
-                details: args,
-              });
-            }
-          }
+          if (toolName.includes('gmail') || toolName.includes('email')) toolCategory = 'GMAIL';
+          else if (toolName.includes('calendar') || toolName.includes('schedule')) toolCategory = 'CALENDAR';
+          else if (toolName.includes('mission') || toolName.includes('step')) toolCategory = 'MISSION';
+          else if (toolName.includes('memory') || toolName.includes('dna')) toolCategory = 'MEMORY';
+
+          toolExecutions.push({
+            id: `tool_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            toolName: toolCategory,
+            action: toolName.replace(/_/g, ' ').toUpperCase(),
+            status: 'completed',
+            result: JSON.stringify(args).slice(0, 100),
+            details: args,
+          });
         }
       }
     }
 
-    // 4. Extract Approval Requests if ADK requested human authorization
-    let approvalRequest: ApprovalRequest | undefined = undefined;
+    let approvalRequest: ApprovalRequest | undefined;
     const toolConfirmations = result.metadata?.adk_actions?.requestedToolConfirmations;
     if (toolConfirmations && Object.keys(toolConfirmations).length > 0) {
       const firstKey = Object.keys(toolConfirmations)[0];
@@ -342,9 +359,6 @@ class SylviaApiService {
     };
   }
 
-  /**
-   * Submit Human Operator Approval to Google ADK Sylvia backend
-   */
   public async submitApproval(
     approvalId: string,
     decision: 'APPROVED' | 'CANCELLED'
@@ -359,11 +373,7 @@ class SylviaApiService {
           message: {
             messageId: `approval_${Date.now()}`,
             role: 'user',
-            parts: [
-              {
-                text: `[HUMAN_APPROVAL_DECISION: ${decision} for action ${approvalId}]`,
-              },
-            ],
+            parts: [{ text: `[HUMAN_APPROVAL_DECISION: ${decision} for action ${approvalId}]` }],
           },
         },
       };
