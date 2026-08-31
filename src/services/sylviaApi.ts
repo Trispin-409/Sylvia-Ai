@@ -35,11 +35,7 @@ class SylviaApiService {
   }
 
   public getBaseUrl(): string { return this.backendUrl; }
-
-  public setBaseUrl(url: string): void {
-    this.backendUrl = url.trim().replace(/\/+$/, '') || DEFAULT_LIVE_BACKEND;
-  }
-
+  public setBaseUrl(url: string): void { this.backendUrl = url.trim().replace(/\/+$/, '') || DEFAULT_LIVE_BACKEND; }
   public getContextId(): string | null { return this.currentContextId; }
   public setContextId(id: string | null): void { this.currentContextId = id; }
   public isDemoMode(): boolean { return this.isDemoModeActive; }
@@ -64,9 +60,7 @@ class SylviaApiService {
     let proxyError: Error | null = null;
     try {
       const response = await fetch('/a2a/app', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(payload),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
       });
       const text = await response.text();
       const body = (() => { try { return JSON.parse(text); } catch { return null; } })();
@@ -76,12 +70,9 @@ class SylviaApiService {
     } catch (err) {
       proxyError = err instanceof Error ? err : new Error(String(err));
     }
-
     try {
       const response = await fetch(`${this.backendUrl}/a2a/app`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(payload),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message || `Google ADK backend returned HTTP ${response.status}`);
@@ -100,8 +91,8 @@ class SylviaApiService {
       const latencyMs = Math.round(performance.now() - startTime);
       if (response.ok && data?.adkStatus === 'connected') {
         return {
-          connected: true, status: 'ok', backendUrl: data.liveAdkBackend || this.backendUrl,
-          latencyMs, lastChecked: new Date().toISOString(), adkConnected: true,
+          connected: true, status: 'ok', backendUrl: data.liveAdkBackend || this.backendUrl, latencyMs,
+          lastChecked: new Date().toISOString(), adkConnected: true,
           a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live Backend)', isDemoMode: false,
         };
       }
@@ -116,16 +107,15 @@ class SylviaApiService {
       const latencyMs = Math.round(performance.now() - startTime);
       const connected = !response?.error && Boolean(response?.result);
       return {
-        connected, status: connected ? 'ok' : 'degraded', backendUrl: this.backendUrl,
-        latencyMs, lastChecked: new Date().toISOString(), adkConnected: connected,
+        connected, status: connected ? 'ok' : 'degraded', backendUrl: this.backendUrl, latencyMs,
+        lastChecked: new Date().toISOString(), adkConnected: connected,
         a2aVersion: 'A2A/2.0-JSONRPC (Google ADK Live)', isDemoMode: false,
         error: connected ? undefined : (response?.error?.message || 'ADK health probe failed'),
       };
     } catch (err: unknown) {
       return {
-        connected: false, status: 'offline', backendUrl: this.backendUrl,
-        lastChecked: new Date().toISOString(), adkConnected: false, isDemoMode: false,
-        error: err instanceof Error ? err.message : String(err),
+        connected: false, status: 'offline', backendUrl: this.backendUrl, lastChecked: new Date().toISOString(),
+        adkConnected: false, isDemoMode: false, error: err instanceof Error ? err.message : String(err),
       };
     }
   }
@@ -150,6 +140,8 @@ class SylviaApiService {
   }
 
   public async sendA2AMessage(userMessage: string): Promise<ParsedADKResponse> {
+    const lower = userMessage.toLowerCase();
+    const workspaceIntent = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
     const payload = {
       jsonrpc: '2.0', id: Date.now(), method: 'message/send',
       params: {
@@ -159,7 +151,22 @@ class SylviaApiService {
     };
     const body = await this.postA2A(payload);
     if (body?.error) throw new Error(body.error.message || `A2A error (${body.error.code})`);
-    return this.parseADKResponse(body);
+    const parsed = this.parseADKResponse(body);
+
+    // A natural-language claim is not evidence of a Workspace operation.
+    // For read requests, require at least one real tool response before displaying
+    // the agent's Gmail/Calendar facts as authoritative UI data.
+    if (workspaceIntent && !parsed.approvalRequest) {
+      const gmailRead = /gmail|email|inbox/.test(lower);
+      const calendarRead = /calendar|meeting|schedule/.test(lower);
+      if (gmailRead && parsed.gmailMessages.length === 0 && !parsed.toolExecutions.some(t => t.toolName === 'GMAIL' && t.status === 'completed')) {
+        parsed.reply = `I could not verify live Gmail data from the connected Workspace Specialist. I will not display or invent inbox records.\n\nBackend response: ${parsed.reply}`;
+      }
+      if (calendarRead && parsed.calendarEvents.length === 0 && !parsed.toolExecutions.some(t => t.toolName === 'CALENDAR' && t.status === 'completed')) {
+        parsed.reply = `I could not verify live Calendar data from the connected Workspace Specialist. I will not display or invent calendar events.\n\nBackend response: ${parsed.reply}`;
+      }
+    }
+    return parsed;
   }
 
   private parseGmailMessage(value: any): GmailMessage | null {
@@ -386,7 +393,7 @@ class SylviaApiService {
         error: !operationSuccess ? String(raw.error || rawDraft.error || '') || undefined : undefined,
       } : undefined;
       const success = decision === 'CANCELLED'
-        ? Boolean(parsed.rawAdkResult) && !parsed.toolExecutions.some(tool => tool.status === 'failed')
+        ? Boolean(parsed.rawAdkResult) && !parsed.toolExecutions.some(tool => tool.status === 'completed' && tool.toolName === 'GMAIL')
         : Boolean(gmailTool && draft?.success && draft.draftId && draft.verified);
       return {
         success, decision, reply: parsed.reply, toolExecutions: parsed.toolExecutions, draft, rawAdkResult: parsed.rawAdkResult,
