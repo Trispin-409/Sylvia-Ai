@@ -250,6 +250,17 @@ export interface ChatItem {
   approvalRequest?: ApprovalRequest;
 }
 
+export interface WorkspaceHealth {
+  source: 'backend';
+  authenticated: boolean;
+  gmailConnected: boolean;
+  gmailEmail?: string;
+  calendarConnected: boolean;
+  calendarCount?: number;
+  error?: string;
+  checkedAt: string;
+}
+
 export interface BackendHealth {
   connected: boolean;
   status: 'ok' | 'degraded' | 'offline';
@@ -260,4 +271,5 @@ export interface BackendHealth {
   a2aVersion?: string;
   error?: string;
   isDemoMode?: boolean;
+  workspace?: WorkspaceHealth;
 }
