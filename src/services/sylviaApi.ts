@@ -27,6 +27,7 @@ const DEFAULT_LIVE_BACKEND = 'https://sylvia-agent-516232832461.africa-south1.ru
 class SylviaApiService {
   private backendUrl: string;
   private currentContextId: string | null = null;
+  private currentTaskId: string | null = null;
   private isDemoModeActive = false;
 
   constructor() {
@@ -46,9 +47,7 @@ class SylviaApiService {
 
   private buildAgentRequest(userMessage: string): string {
     const lower = userMessage.toLowerCase();
-    const workspaceIntent =
-      lower.includes('gmail') || lower.includes('email') || lower.includes('inbox') ||
-      lower.includes('calendar') || lower.includes('meeting') || lower.includes('schedule');
+    const workspaceIntent = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
     if (!workspaceIntent) return userMessage;
 
     return [
@@ -222,6 +221,8 @@ class SylviaApiService {
   private parseADKResponse(adkJson: any): ParsedADKResponse {
     const result = adkJson?.result || {};
     if (result.contextId) this.currentContextId = String(result.contextId);
+    if (result.id) this.currentTaskId = String(result.id);
+
     let replyText = '';
     for (const artifact of Array.isArray(result.artifacts) ? result.artifacts : []) {
       const textPart = Array.isArray(artifact?.parts) ? artifact.parts.find((p: any) => p?.kind === 'text' || typeof p?.text === 'string') : null;
@@ -262,7 +263,7 @@ class SylviaApiService {
         toolName: category,
         action: toolName.replace(/_/g, ' ').toUpperCase(),
         status: failed ? 'failed' : response ? 'completed' : 'running',
-        result: responseBody ? JSON.stringify(responseBody).slice(0, 700) : undefined,
+        result: responseBody ? JSON.stringify(responseBody).slice(0, 1200) : undefined,
         details: responseBody && typeof responseBody === 'object' ? responseBody : item.data?.args,
       });
 
@@ -310,6 +311,7 @@ class SylviaApiService {
         confirmationName: confirmationCall.name,
         originalFunctionCallId: original.id,
         confirmationPayload: confirmation.payload && typeof confirmation.payload === 'object' ? confirmation.payload : undefined,
+        taskId: result.id ? String(result.id) : this.currentTaskId || undefined,
         createdAt: new Date().toISOString(),
       };
     }
@@ -319,7 +321,7 @@ class SylviaApiService {
       reply: replyText,
       specialist: specialist.charAt(0).toUpperCase() + specialist.slice(1),
       contextId: result.contextId,
-      taskId: result.id,
+      taskId: result.id ? String(result.id) : this.currentTaskId || undefined,
       toolExecutions,
       approvalRequest,
       gmailMessages,
@@ -332,11 +334,10 @@ class SylviaApiService {
   public async submitApproval(approval: ApprovalRequest, decision: 'APPROVED' | 'CANCELLED'): Promise<ApprovalResult> {
     if (!approval.confirmationCallId || !approval.confirmationName) {
       return {
-        success: false,
-        decision,
+        success: false, decision,
         reply: 'The live ADK approval request is missing its confirmation call identifier. No external action was executed.',
         toolExecutions: [],
-        error: 'Missing confirmationCallId/confirmationName',
+        error: 'Missing ADK confirmation call identifier',
       };
     }
 
@@ -346,7 +347,8 @@ class SylviaApiService {
     const payload = {
       jsonrpc: '2.0', id: Date.now(), method: 'message/send',
       params: {
-        ...(this.currentContextId ? { contextId: this.currentContextId } : {}),
+        ...(approval.contextId ? { contextId: approval.contextId } : this.currentContextId ? { contextId: this.currentContextId } : {}),
+        ...(approval.taskId || this.currentTaskId ? { taskId: approval.taskId || this.currentTaskId } : {}),
         message: {
           messageId: `approval_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           role: 'user',
@@ -385,12 +387,7 @@ class SylviaApiService {
         ? Boolean(parsed.rawAdkResult) && !parsed.toolExecutions.some(tool => tool.status === 'failed')
         : Boolean(gmailTool && draft?.success && draft.draftId && draft.verified);
       return {
-        success,
-        decision,
-        reply: parsed.reply,
-        toolExecutions: parsed.toolExecutions,
-        draft,
-        rawAdkResult: parsed.rawAdkResult,
+        success, decision, reply: parsed.reply, toolExecutions: parsed.toolExecutions, draft, rawAdkResult: parsed.rawAdkResult,
         error: success ? undefined : decision === 'CANCELLED'
           ? 'The cancellation could not be confirmed by the live ADK response.'
           : 'The live ADK response did not provide a verified Gmail draft result. The UI will not claim that a draft was created.',
