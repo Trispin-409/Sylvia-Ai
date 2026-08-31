@@ -75,7 +75,7 @@ export function useSylvia() {
 
   const checkSystemHealth = useCallback(async () => {
     try {
-      // This is a lightweight HTTP health probe. It does not invoke an LLM.
+      // Lightweight HTTP health probe; it does not invoke the model.
       const healthResult = await sylviaApi.checkHealth();
       setHealth(prev => ({ ...healthResult, workspace: prev.workspace }));
       setAgentCard(await sylviaApi.getAgentCard());
@@ -84,20 +84,6 @@ export function useSylvia() {
       addActivity('System Alert', `Health check failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
   }, [addActivity]);
-
-  useEffect(() => {
-    void checkSystemHealth();
-    const interval = window.setInterval(() => { void checkSystemHealth(); }, 20000);
-    return () => window.clearInterval(interval);
-  }, [checkSystemHealth]);
-
-  const setTemporaryState = useCallback((state: SylviaState, durationMs = 4000) => {
-    if (stateResetTimerRef.current) clearTimeout(stateResetTimerRef.current);
-    setSylviaState(state);
-    if (state !== 'IDLE' && state !== 'WAITING_FOR_APPROVAL') {
-      stateResetTimerRef.current = setTimeout(() => setSylviaState('IDLE'), durationMs);
-    }
-  }, []);
 
   const applyBackendWorkspaceHealth = useCallback((workspaceResult?: Record<string, unknown>) => {
     if (!workspaceResult || typeof workspaceResult !== 'object') return;
@@ -129,6 +115,35 @@ export function useSylvia() {
       workspace.gmailEmail || workspace.error,
     );
   }, [addActivity]);
+
+  const refreshWorkspaceHealth = useCallback(async () => {
+    try {
+      const workspace = await sylviaApi.checkWorkspaceHealth();
+      applyBackendWorkspaceHealth(workspace as unknown as Record<string, unknown>);
+    } catch (error) {
+      addActivity('Workspace Specialist', `Workspace health check failed: ${error instanceof Error ? error.message : String(error)}`, 'error', 'WORKSPACE_HEALTH');
+    }
+  }, [addActivity, applyBackendWorkspaceHealth]);
+
+  useEffect(() => {
+    void checkSystemHealth();
+    const interval = window.setInterval(() => { void checkSystemHealth(); }, 20000);
+    return () => window.clearInterval(interval);
+  }, [checkSystemHealth]);
+
+  useEffect(() => {
+    if ((activeView === 'workspace-gmail' || activeView === 'workspace-calendar') && !health.workspace) {
+      void refreshWorkspaceHealth();
+    }
+  }, [activeView, health.workspace, refreshWorkspaceHealth]);
+
+  const setTemporaryState = useCallback((state: SylviaState, durationMs = 4000) => {
+    if (stateResetTimerRef.current) clearTimeout(stateResetTimerRef.current);
+    setSylviaState(state);
+    if (state !== 'IDLE' && state !== 'WAITING_FOR_APPROVAL') {
+      stateResetTimerRef.current = setTimeout(() => setSylviaState('IDLE'), durationMs);
+    }
+  }, []);
 
   const sendMessage = useCallback(async (text: string, onSpeechResponse?: (reply: string) => void) => {
     if (!text.trim()) return;
@@ -325,6 +340,6 @@ export function useSylvia() {
     activities, health, agentCard, activeDelegationPath: delegationPath, delegationPath, activeSpecialistNode,
     sendMessage, approveAction, cancelAction: cancelApproval, cancelApproval,
     updateMissionStepStatus: updateMissionStep, updateMissionStep, addDecisionRule, addContextMemory,
-    runDemoSequence, refreshHealth: checkSystemHealth, checkSystemHealth, updateBackendUrl, addActivity,
+    runDemoSequence, refreshHealth: checkSystemHealth, refreshWorkspaceHealth, checkSystemHealth, updateBackendUrl, addActivity,
   };
 }
