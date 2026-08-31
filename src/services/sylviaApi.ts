@@ -114,10 +114,6 @@ class SylviaApiService {
     }
   }
 
-  /**
-   * Explicit/on-demand Workspace check. This is separate from periodic backend
-   * health so the UI never spends an LLM request just to test Cloud Run uptime.
-   */
   public async checkWorkspaceHealth(): Promise<WorkspaceHealth> {
     const response = await this.postA2A({
       jsonrpc: '2.0', id: `workspace_health_${Date.now()}`, method: 'message/send',
@@ -149,8 +145,6 @@ class SylviaApiService {
   }
 
   public async getAgentCard(): Promise<AgentCard> {
-    // Capability descriptions are UI metadata only. Live Workspace status is shown
-    // separately and is never inferred from this static capability map.
     return {
       name: 'SYLVIA',
       description: 'Collaborative Digital Operator running on Google ADK with Root Agent, Context Analyst, Decision Partner, Action Planner, and Workspace Specialist.',
@@ -162,7 +156,7 @@ class SylviaApiService {
         { name: 'context_memory_health_check', description: 'Validate Firestore persistent context memory store' },
         { name: 'save_decision_dna_preference', description: 'Persist preference or rule to Decision DNA' },
         { name: 'save_context_memory', description: 'Store structured context memory item' },
-        { name: 'create_gmail_draft', description: 'Create and verify a Gmail draft with human-in-the-loop authorization' },
+        { name: 'create_gmail_draft', description: 'Create a Gmail draft with human-in-the-loop authorization and structured result verification' },
         { name: 'schedule_calendar_event', description: 'Schedule or adjust Google Calendar event' },
         { name: 'start_or_update_mission', description: 'Deconstruct complex goals into actionable multi-step missions' },
       ],
@@ -316,23 +310,27 @@ class SylviaApiService {
         details: responseBody || item.data?.args,
       });
 
-      if (toolName === 'workspace_health_check' && responseBody) {
-        workspaceResult = responseBody;
-      }
+      if (toolName === 'workspace_health_check' && responseBody) workspaceResult = responseBody;
 
       if (category === 'GMAIL' && responseBody) {
         workspaceResult = responseBody;
-        const rawMessages = Array.isArray(responseBody.messages) ? responseBody.messages : Array.isArray(responseBody.emails) ? responseBody.emails : [];
+        const rawMessages = Array.isArray(responseBody.messages)
+          ? responseBody.messages
+          : Array.isArray(responseBody.emails)
+            ? responseBody.emails
+            : responseBody.message && typeof responseBody.message === 'object'
+              ? [responseBody.message]
+              : [];
         for (const raw of rawMessages) {
           const parsed = this.parseGmailMessage(raw);
-          if (parsed) gmailMessages.push(parsed);
+          if (parsed && !gmailMessages.some(existing => existing.id === parsed.id)) gmailMessages.push(parsed);
         }
       }
       if (category === 'CALENDAR' && responseBody) {
         workspaceResult = responseBody;
         for (const raw of Array.isArray(responseBody.events) ? responseBody.events : []) {
           const parsed = this.parseCalendarEvent(raw);
-          if (parsed) calendarEvents.push(parsed);
+          if (parsed && !calendarEvents.some(existing => existing.id === parsed.id)) calendarEvents.push(parsed);
         }
       }
     }
@@ -348,6 +346,8 @@ class SylviaApiService {
       if (originalName.toLowerCase().includes('gmail')) actionType = originalName.toLowerCase().includes('send') ? 'GMAIL_SEND' : 'GMAIL_DRAFT';
       else if (originalName.toLowerCase().includes('calendar') || originalName.toLowerCase().includes('schedule')) actionType = 'CALENDAR_CREATE';
       const originalArgs = original.args || {};
+      const targetMessageId = String(originalArgs.message_id || confirmation.payload?.message_id || '').trim();
+      const sourceMessage = targetMessageId ? gmailMessages.find(message => message.id === targetMessageId) : undefined;
       const contextId = result.contextId ? String(result.contextId) : this.currentContextId || undefined;
       const taskId = result.id ? String(result.id) : this.currentTaskId || undefined;
       approvalRequest = {
@@ -355,13 +355,13 @@ class SylviaApiService {
         actionType,
         title: confirmation.hint || `Approve ${originalName.replace(/_/g, ' ')}`,
         description: confirmation.hint || `Sylvia is requesting human approval for ${originalName.replace(/_/g, ' ')}.`,
-        recipient: originalArgs.recipient || originalArgs.to,
-        subject: originalArgs.subject,
+        recipient: originalArgs.recipient || originalArgs.to || sourceMessage?.senderEmail || sourceMessage?.sender,
+        subject: originalArgs.subject || (sourceMessage?.subject ? `Re: ${sourceMessage.subject.replace(/^Re:\s*/i, '')}` : undefined),
         bodyPreview: originalArgs.body || originalArgs.bodyPreview || confirmation.payload?.body,
         scheduledTime: originalArgs.start_time || originalArgs.startTime,
         status: 'WAITING',
         riskLevel: actionType === 'GMAIL_SEND' ? 'HIGH' : 'MEDIUM',
-        metadata: { originalFunctionCall: original, toolConfirmation: confirmation },
+        metadata: { originalFunctionCall: original, toolConfirmation: confirmation, sourceMessageId: targetMessageId || undefined },
         confirmationCallId: confirmationCall.id,
         confirmationName: confirmationCall.name,
         originalFunctionCallId: original.id,
@@ -425,29 +425,36 @@ class SylviaApiService {
       const raw = parsed.workspaceResult || {};
       const rawDraftCandidate = raw.draft && typeof raw.draft === 'object' ? raw.draft as Record<string, unknown> : raw;
       const rawDraft = rawDraftCandidate.result && typeof rawDraftCandidate.result === 'object' ? rawDraftCandidate.result as Record<string, unknown> : rawDraftCandidate;
-      const draftId = rawDraft.draftId || rawDraft.draft_id || (rawDraft.id && approval.actionType === 'GMAIL_DRAFT' ? rawDraft.id : undefined);
-      const messageId = rawDraft.messageId || rawDraft.message_id;
-      const threadId = rawDraft.threadId || rawDraft.thread_id;
-      const operationSuccess = raw.success === true || rawDraft.success === true;
+      const draftIdCandidate = rawDraft.draftId || rawDraft.draft_id || (rawDraft.id && approval.actionType === 'GMAIL_DRAFT' ? rawDraft.id : undefined);
+      const draftId = typeof draftIdCandidate === 'string' && draftIdCandidate.trim() ? draftIdCandidate.trim() : undefined;
+      const messageIdCandidate = rawDraft.messageId || rawDraft.message_id;
+      const threadIdCandidate = rawDraft.threadId || rawDraft.thread_id;
+      const messageId = messageIdCandidate ? String(messageIdCandidate) : undefined;
+      const threadId = threadIdCandidate ? String(threadIdCandidate) : undefined;
+      const operationSuccess = rawDraft.draft_created === true || raw.draft_created === true || raw.success === true || rawDraft.success === true;
       const verified = rawDraft.verified === true || rawDraft.verification === 'verified' || rawDraft.status === 'verified';
+      const draftCreated = approval.actionType === 'GMAIL_DRAFT' && Boolean(gmailTool && operationSuccess && draftId);
       const draft: GmailDraftResult | undefined = approval.actionType === 'GMAIL_DRAFT' ? {
-        success: operationSuccess,
+        success: draftCreated,
         verified,
-        draftId: draftId ? String(draftId) : undefined,
-        messageId: messageId ? String(messageId) : undefined,
-        threadId: threadId ? String(threadId) : undefined,
+        draftId,
+        messageId,
+        threadId,
         recipient: approval.recipient,
         subject: approval.subject,
-        error: !operationSuccess ? String(raw.error || rawDraft.error || '') || undefined : undefined,
+        error: !draftCreated ? String(raw.error || rawDraft.error || '') || undefined : undefined,
       } : undefined;
       const success = decision === 'CANCELLED'
         ? Boolean((parsed.rawAdkResult as any)?.status?.state === 'completed') && !parsed.approvalRequest && !parsed.toolExecutions.some(tool => tool.status === 'completed' && tool.toolName === 'GMAIL')
-        : Boolean(gmailTool && draft?.success && draft.draftId && draft.verified);
+        : draftCreated;
+      const error = success
+        ? undefined
+        : decision === 'CANCELLED'
+          ? 'The cancellation could not be confirmed by the live ADK backend.'
+          : draft?.error || 'The live ADK response did not provide a successful Gmail draft result with a real draft ID.';
       return {
         success, decision, reply: parsed.reply, toolExecutions: parsed.toolExecutions, draft, rawAdkResult: parsed.rawAdkResult,
-        error: success ? undefined : decision === 'CANCELLED'
-          ? 'The cancellation could not be confirmed by the live ADK backend.'
-          : 'The live ADK response did not provide a verified Gmail draft result. The UI will not claim that a draft was created.',
+        error,
       };
     } catch (err: unknown) {
       const error = err instanceof Error ? err.message : String(err);
