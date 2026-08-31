@@ -168,6 +168,7 @@ export interface ApprovalRequest {
   confirmationName?: string;
   originalFunctionCallId?: string;
   confirmationPayload?: Record<string, unknown>;
+  contextId?: string;
   taskId?: string;
   createdAt: string;
 }
