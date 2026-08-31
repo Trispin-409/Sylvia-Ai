@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GmailMessage, ApprovalRequest } from '../types';
+import { GmailMessage, ApprovalRequest, WorkspaceHealth } from '../types';
 import {
   Mail,
   Send,
@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Inbox,
   AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 
 interface GmailPanelProps {
@@ -16,6 +17,7 @@ interface GmailPanelProps {
   pendingApprovals: ApprovalRequest[];
   onApproveAction: (approvalId: string) => void;
   onCancelAction: (approvalId: string) => void;
+  workspaceHealth?: WorkspaceHealth;
 }
 
 export const GmailPanel: React.FC<GmailPanelProps> = ({
@@ -24,11 +26,11 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
   pendingApprovals,
   onApproveAction,
   onCancelAction,
+  workspaceHealth,
 }) => {
   const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(messages[0] || null);
   const gmailApprovals = pendingApprovals.filter(a => a.actionType.startsWith('GMAIL'));
 
-  // Select the first newly-arrived live message when the ADK response populates the feed.
   useEffect(() => {
     setSelectedMessage(current => {
       if (!messages.length) return null;
@@ -49,10 +51,27 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
             <p className="text-xs text-slate-400">Live records returned by the Google ADK Workspace Specialist</p>
           </div>
         </div>
-        <span className="px-3 py-1 rounded-full text-xs font-mono-code bg-rose-950/40 text-rose-300 border border-rose-500/30">
-          Human Approval: Enabled
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-mono-code border ${
+            workspaceHealth?.gmailConnected
+              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
+              : workspaceHealth
+                ? 'bg-rose-950/40 text-rose-300 border-rose-500/30'
+                : 'bg-slate-950/60 text-slate-400 border-slate-700'
+          }`}>
+            {workspaceHealth?.gmailConnected ? 'Gmail: Connected' : workspaceHealth ? 'Gmail: Not Connected' : 'Gmail: Not Checked'}
+          </span>
+          <span className="px-3 py-1 rounded-full text-xs font-mono-code bg-rose-950/40 text-rose-300 border border-rose-500/30">
+            Human Approval: Enabled
+          </span>
+        </div>
       </div>
+
+      {workspaceHealth?.gmailEmail && (
+        <div className="mt-3 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] font-mono-code text-slate-400">
+          Live Workspace account: <span className="text-slate-200">{workspaceHealth.gmailEmail}</span>
+        </div>
+      )}
 
       {gmailApprovals.length > 0 && (
         <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-950 border border-amber-500/50 shadow-xl">
@@ -123,7 +142,13 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
                 <p className="text-xs text-slate-300 font-sans">
                   {selectedMessage.requiresReply ? 'This live Gmail record is marked as requiring a reply by the Workspace result.' : 'No reply-required flag was supplied by the Gmail result.'}
                 </p>
-                {selectedMessage.requiresReply && <button onClick={() => onDraftReply(selectedMessage)} className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-md shadow-indigo-950/40 transition-all"><Send className="w-3.5 h-3.5" /><span>Ask Sylvia to Formulate Reply Draft</span></button>}
+                {selectedMessage.requiresReply && workspaceHealth?.gmailConnected && <button onClick={() => onDraftReply(selectedMessage)} className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-md shadow-indigo-950/40 transition-all"><Send className="w-3.5 h-3.5" /><span>Ask Sylvia to Formulate Reply Draft</span></button>}
+                {selectedMessage.requiresReply && !workspaceHealth?.gmailConnected && (
+                  <div className="flex items-center gap-2 text-amber-300 text-[11px] font-mono-code">
+                    <XCircle className="w-3.5 h-3.5" />
+                    Workspace connection is not verified; draft creation is disabled.
+                  </div>
+                )}
               </div>
             </div>
           ) : (
