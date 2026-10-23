@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {pendingCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/30 text-amber-300 border border-amber-500/50 animate-pulse">
-                  {pendingApprovalsCount}
+                  {pendingCount}
                 </span>
               )}
             </button>
