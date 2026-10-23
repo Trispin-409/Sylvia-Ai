@@ -14,7 +14,6 @@ interface SylviaCompanionHomeProps {
   pendingApprovals: ApprovalRequest[];
   isListening: boolean;
   voiceOutputEnabled: boolean;
-  audioLevel?: number[];
   transcript?: string;
   onSendMessage: (text: string) => void;
   onToggleListening: () => void;
@@ -95,7 +94,7 @@ const quickActions: Array<{
 
 export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
   activeView, state, health, chatMessages, pendingApprovals, isListening, voiceOutputEnabled,
-  audioLevel = [], transcript = '', onSendMessage, onToggleListening,
+  transcript = '', onSendMessage, onToggleListening,
   onToggleVoiceOutput, onOpenWorkspace,
 }) => {
   const [command, setCommand] = useState('');
@@ -165,7 +164,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
             <div className={'mt-4 flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] ' + statusBorder[status.tone]}>
               <span className={'h-1.5 w-1.5 rounded-full ' + statusDot[status.tone]} />
               <span className={statusText[status.tone]}>{status.label}</span>
-              {isListening && <span className="ml-1 flex h-4 items-center gap-0.5" aria-label="Audio activity">{audioLevel.slice(0, 7).map((level, index) => <span key={index} className="w-0.5 rounded-full bg-sky-300 transition-all" style={{ height: Math.max(3, Math.min(15, level * 15)) + 'px' }} />)}</span>}
+
             </div>
           </section>
 
