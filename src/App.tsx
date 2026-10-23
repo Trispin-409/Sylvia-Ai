@@ -114,6 +114,7 @@ export function App() {
   if (!workspaceExpanded) {
     return (
       <SylviaCompanionHome
+        activeView={activeView}
         state={sylviaState}
         health={health}
         chatMessages={chatMessages}
