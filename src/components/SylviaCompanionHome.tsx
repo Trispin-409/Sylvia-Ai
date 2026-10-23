@@ -229,7 +229,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
     <div className="sylvia-companion-root relative min-h-screen overflow-x-hidden overflow-y-auto text-slate-100">
       <div className="sylvia-companion-glow sylvia-companion-glow-one" aria-hidden="true" />
       <div className="sylvia-companion-glow sylvia-companion-glow-two" aria-hidden="true" />
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 pb-7 pt-4 sm:px-6 sm:pt-6">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 pb-64 pt-4 sm:px-6 sm:pt-6">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-indigo-300/20 bg-gradient-to-br from-indigo-400/25 via-violet-500/20 to-sky-400/15 shadow-lg shadow-indigo-950/40">
@@ -248,22 +248,13 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col">
-          <section className="sylvia-hero-center flex flex-col items-center text-center">
-            <div className="sylvia-hero-island-wrap">
-              <div className={'sylvia-reference-island sylvia-reference-island-' + status.tone} aria-label="Sylvia companion island">
-                <div className="sylvia-island-controls sylvia-island-controls-left">
-                  <button type="button" onClick={() => onOpenWorkspace('chat')} className="sylvia-island-icon" aria-label="Open Sylvia chat" title="Chat">
-                    <MessageCircle className="h-4 w-4" />
-                  </button>
-                  <button type="button" onClick={() => setCommand('What should we work on?')} className="sylvia-island-icon" aria-label="Start a new request" title="New request">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-
+        <main className="sylvia-main flex flex-1 flex-col">
+          <section className="sylvia-hero-center" aria-label="Sylvia assistant">
+            <div className="sylvia-character-stage">
+              <div className="sylvia-character-entry">
                 <button
                   type="button"
-                  className={'sylvia-mochi-button sylvia-mochi-' + status.tone}
+                  className={'sylvia-floating-pal sylvia-mochi-' + status.tone}
                   onClick={onToggleListening}
                   aria-label={isListening ? 'Stop listening to Sylvia' : 'Speak to Sylvia'}
                   title={isListening ? 'Stop listening' : 'Tap to talk to Sylvia'}
@@ -271,33 +262,22 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
                   <SylviaDotPal
                     character={selectedCharacter}
                     state={dotPalState}
-                    size={96}
+                    size={132}
                     text={dotPalState === 'idle' ? undefined : status.headline}
                     className="sylvia-dotpal-character"
                   />
-                  {isListening && <span className="sylvia-mochi-listening-ring" aria-hidden="true" />}
                 </button>
-
-                <div className="sylvia-island-controls sylvia-island-controls-right">
-                  <span className={'sylvia-island-status-dot ' + statusDot[status.tone]} title={status.label} aria-label={status.label} />
-                  <button type="button" onClick={onToggleVoiceOutput} className="sylvia-island-icon" title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
-                    {voiceOutputEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                  </button>
-                  <button type="button" onClick={() => onOpenWorkspace(activeView)} className="sylvia-island-icon sylvia-island-expand" aria-label="Open full Sylvia workspace" title="Open full workspace">
-                    <Expand className="h-4 w-4" />
-                  </button>
-                </div>
               </div>
             </div>
 
             <div className="sylvia-hero-copy">
-              <div className="mt-1 flex items-center justify-center gap-2 text-[11px] font-medium tracking-wide text-slate-400">
+              <div className="flex items-center justify-center gap-2 text-[11px] font-medium tracking-wide text-slate-400">
                 <span className={'h-1.5 w-1.5 rounded-full ' + statusDot[status.tone]} />
                 <span>{status.label.toUpperCase()}</span>
                 <span className="h-3 w-px bg-white/10" />
                 <span>{health.connected ? 'SYLVIA ONLINE' : 'WAITING FOR CONNECTION'}</span>
               </div>
-              <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{status.headline}</h1>
+              <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{status.headline}</h1>
               <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{status.detail}</p>
             </div>
           </section>
@@ -397,28 +377,46 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
             </button>
           )}
 
-          <section className="sylvia-companion-panel rounded-[24px] border border-white/[0.09] bg-[#0a0f1b]/85 p-3.5 shadow-2xl shadow-black/25 backdrop-blur-2xl sm:p-4">
-            <div className="mb-3 flex items-center justify-between px-1">
-              <div className="text-xs font-semibold text-slate-200">Talk to Sylvia</div>
-              <button type="button" onClick={onToggleVoiceOutput} className={'rounded-lg p-2 transition ' + (voiceOutputEnabled ? 'text-indigo-200 hover:bg-indigo-400/10' : 'text-slate-500 hover:bg-white/5 hover:text-slate-200')} title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
+          <section className="sylvia-chat-dock" aria-label="Talk to Sylvia">
+            <form onSubmit={submitCommand} className="sylvia-chat-island">
+              <button type="button" onClick={() => onOpenWorkspace('chat')} className="sylvia-chat-action" aria-label="Open chat history" title="Chat history">
+                <MessageCircle className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => setCommand('')} className="sylvia-chat-action sylvia-chat-new" aria-label="Clear and start a new request" title="New request">
+                <Plus className="h-4 w-4" />
+              </button>
+              <textarea
+                value={command}
+                onChange={event => setCommand(event.target.value)}
+                rows={1}
+                maxLength={6000}
+                placeholder={isListening ? 'Listening… speak now or type here' : 'Message Sylvia…'}
+                className="sylvia-chat-textarea"
+                aria-label="Command for Sylvia"
+              />
+              <button type="button" onClick={onToggleListening} className={'sylvia-chat-action ' + (isListening ? 'sylvia-chat-mic-active' : '')} aria-pressed={isListening} aria-label={isListening ? 'Stop listening' : 'Speak to Sylvia'} title={isListening ? 'Stop listening' : 'Speak'}>
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <button type="button" onClick={onToggleVoiceOutput} className="sylvia-chat-action hidden sm:inline-flex" aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
                 {voiceOutputEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               </button>
-            </div>
-            <form onSubmit={submitCommand} className="rounded-[18px] border border-white/10 bg-[#050912] p-2 transition focus-within:border-indigo-300/35">
-              <textarea value={command} onChange={event => setCommand(event.target.value)} rows={2} maxLength={6000} placeholder={isListening ? 'Listening… speak now or type here' : 'Ask Sylvia to do something…'} className="max-h-32 min-h-[54px] w-full resize-y bg-transparent px-2 py-1.5 text-sm leading-6 text-white outline-none placeholder:text-slate-500" aria-label="Command for Sylvia" />
-              <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2">
-                <button type="button" onClick={onToggleListening} className={'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition ' + (isListening ? 'bg-sky-400/15 text-sky-200' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100')} aria-pressed={isListening}>
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{isListening ? 'Stop listening' : 'Speak'}
-                </button>
-                <button type="submit" disabled={!command.trim() || busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40">
-                  {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}{busy ? 'Working' : 'Send'}
-                </button>
-              </div>
+              <button type="button" onClick={() => onOpenWorkspace(activeView)} className="sylvia-chat-action hidden sm:inline-flex" aria-label="Open full Sylvia workspace" title="Open full workspace">
+                <Expand className="h-4 w-4" />
+              </button>
+              <button type="submit" disabled={!command.trim() || busy} className="sylvia-chat-send" aria-label={busy ? 'Sylvia is working' : 'Send message'} title={busy ? 'Working' : 'Send message'}>
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+              </button>
             </form>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="sylvia-chat-suggestions">
               {['Find emails I need to reply to', 'What should I do next?', 'Check my calendar'].map(prompt => (
-                <button type="button" key={prompt} onClick={() => setCommand(prompt)} className="rounded-full border border-white/[0.09] bg-white/[0.025] px-3 py-1.5 text-[11px] text-slate-400 transition hover:border-indigo-300/25 hover:bg-indigo-400/[0.07] hover:text-indigo-100">{prompt}</button>
+                <button type="button" key={prompt} onClick={() => setCommand(prompt)} className="sylvia-chat-suggestion">{prompt}</button>
               ))}
+              <button type="button" onClick={onToggleVoiceOutput} className="sylvia-chat-action sm:hidden" aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
+                {voiceOutputEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </button>
+              <button type="button" onClick={() => onOpenWorkspace(activeView)} className="sylvia-chat-action sm:hidden" aria-label="Open full Sylvia workspace" title="Open full workspace">
+                <Expand className="h-4 w-4" />
+              </button>
             </div>
           </section>
 
