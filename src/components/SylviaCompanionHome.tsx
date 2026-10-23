@@ -5,6 +5,8 @@ import {
   Volume2, VolumeX, Wifi, WifiOff, XCircle,
 } from 'lucide-react';
 import { ApprovalRequest, BackendHealth, ChatItem, NavView, SylviaState } from '../types';
+import { DotPal, cleanCustom, registerCustom, type CustomPal } from 'dotpals';
+import { SylviaDotPal, type SylviaPalAgentState } from './SylviaDotPal';
 
 interface SylviaCompanionHomeProps {
   activeView: NavView;
@@ -49,6 +51,42 @@ function getStatus(state: SylviaState, isListening: boolean): CompanionStatus {
       return { label: 'Ready', headline: 'What should we take care of?', detail: 'Ask Sylvia to help plan, think, or take an approved action.', tone: 'calm' };
   }
 }
+
+
+function getDotPalState(state: SylviaState, isListening: boolean): SylviaPalAgentState {
+  if (isListening || state === 'LISTENING') return 'listening';
+  switch (state) {
+    case 'THINKING':
+    case 'ANALYZING':
+      return 'thinking';
+    case 'WORKING':
+      return 'working';
+    case 'WAITING_FOR_APPROVAL':
+      return 'waiting';
+    case 'COMPLETED':
+      return 'done';
+    case 'ERROR':
+      return 'error';
+    default:
+      return 'idle';
+  }
+}
+
+const DOTPALS_CHARACTERS = [
+  { id: 'blu', label: 'Blu · blue cloud' },
+  { id: 'hop', label: 'Hop · frog' },
+  { id: 'sunny', label: 'Sunny · gumdrop' },
+  { id: 'lovi', label: 'Lovi · heart' },
+  { id: 'muse', label: 'Muse · flame' },
+  { id: 'grok', label: 'Grok · visor bot' },
+  { id: 'nova', label: 'Nova · light-bulb bot' },
+  { id: 'byte', label: 'Byte · pixel cat' },
+  { id: 'webby', label: 'Webby · spider' },
+] as const;
+
+const CUSTOM_PAL_ID = 'sylvia-custom-pal';
+const CUSTOM_PAL_STORAGE_KEY = 'sylvia.dotpals.custom-pal.v1';
+const SELECTED_PAL_STORAGE_KEY = 'sylvia.dotpals.selected-pal.v1';
 
 const statusDot: Record<CompanionStatus['tone'], string> = {
   calm: 'bg-slate-400',
@@ -98,10 +136,81 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
   onToggleVoiceOutput, onOpenWorkspace,
 }) => {
   const [command, setCommand] = useState('');
+  const [selectedCharacter, setSelectedCharacter] = useState<string>('blu');
+  const [hasCustomPal, setHasCustomPal] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customShape, setCustomShape] = useState<NonNullable<CustomPal['shape']>>('round');
+  const [customEyes, setCustomEyes] = useState<NonNullable<CustomPal['eyes']>>('round');
+  const [customTop, setCustomTop] = useState<NonNullable<CustomPal['top']>>('sprout');
+  const [customColor, setCustomColor] = useState('#8b7cff');
   const status = useMemo(() => getStatus(state, isListening), [state, isListening]);
+  const dotPalState = useMemo(() => getDotPalState(state, isListening), [state, isListening]);
   const waitingApprovals = pendingApprovals.filter(item => item.status === 'WAITING');
   const recentMessages = chatMessages.slice(-2);
   const busy = ['THINKING', 'ANALYZING', 'WORKING'].includes(state) && !isListening;
+
+  useEffect(() => {
+    try {
+      const rawCustom = window.localStorage.getItem(CUSTOM_PAL_STORAGE_KEY);
+      let restoredCustom = false;
+      if (rawCustom) {
+        const saved = cleanCustom(JSON.parse(rawCustom));
+        if (saved) {
+          registerCustom(saved, CUSTOM_PAL_ID);
+          DotPal.refresh(CUSTOM_PAL_ID);
+          setHasCustomPal(true);
+          setCustomShape(saved.shape);
+          setCustomEyes(saved.eyes);
+          setCustomTop(saved.top);
+          setCustomColor(saved.color);
+          restoredCustom = true;
+        }
+      }
+
+      const savedSelection = window.localStorage.getItem(SELECTED_PAL_STORAGE_KEY);
+      const isBuiltIn = DOTPALS_CHARACTERS.some(character => character.id === savedSelection);
+      if (isBuiltIn || (savedSelection === CUSTOM_PAL_ID && restoredCustom)) {
+        setSelectedCharacter(savedSelection!);
+      }
+    } catch {
+      // A broken or unavailable saved pal never prevents Sylvia from loading.
+    }
+  }, []);
+
+  const saveCustomPal = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const spec: CustomPal = {
+      name: 'Sylvia',
+      shape: customShape,
+      eyes: customEyes,
+      top: customTop,
+      color: customColor,
+      fur: true,
+    };
+
+    const saved = cleanCustom(spec);
+    if (!saved) return;
+    registerCustom(saved, CUSTOM_PAL_ID);
+    DotPal.refresh(CUSTOM_PAL_ID);
+    setHasCustomPal(true);
+    setSelectedCharacter(CUSTOM_PAL_ID);
+    try {
+      window.localStorage.setItem(CUSTOM_PAL_STORAGE_KEY, JSON.stringify(saved));
+      window.localStorage.setItem(SELECTED_PAL_STORAGE_KEY, CUSTOM_PAL_ID);
+    } catch {
+      // Character creation still works for the current session if storage is blocked.
+    }
+    setCustomizeOpen(false);
+  };
+
+  const chooseCharacter = (character: string) => {
+    setSelectedCharacter(character);
+    try {
+      window.localStorage.setItem(SELECTED_PAL_STORAGE_KEY, character);
+    } catch {
+      // Character selection still works for the current session if storage is blocked.
+    }
+  };
 
   useEffect(() => {
     if (transcript) setCommand(transcript);
@@ -158,28 +267,13 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
                 aria-label={isListening ? 'Stop listening to Sylvia' : 'Speak to Sylvia'}
                 title={isListening ? 'Stop listening' : 'Tap to talk to Sylvia'}
               >
-                <svg className="sylvia-mochi-art" viewBox="0 0 100 82" role="img" aria-label="Sylvia's little companion character">
-                  <defs>
-                    <linearGradient id="sylviaMochiBody" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#ffffff" />
-                      <stop offset="100%" stopColor="#dfe6ff" />
-                    </linearGradient>
-                    <filter id="sylviaMochiGlow" x="-80%" y="-80%" width="260%" height="260%">
-                      <feGaussianBlur stdDeviation="4" />
-                    </filter>
-                  </defs>
-                  <ellipse cx="50" cy="70" rx="22" ry="5" fill="#8b9cff" opacity=".35" filter="url(#sylviaMochiGlow)" />
-                  <g className="sylvia-mochi-arms">
-                    <path d="M25 42 C16 39 12 45 15 51 C18 57 24 54 28 50" fill="url(#sylviaMochiBody)" />
-                    <path d="M75 42 C84 39 88 45 85 51 C82 57 76 54 72 50" fill="url(#sylviaMochiBody)" />
-                  </g>
-                  <path className="sylvia-mochi-body" d="M24 20 C28 11 39 9 50 9 C63 9 74 13 77 23 C81 34 78 51 73 58 C68 65 59 67 50 67 C39 67 30 64 25 57 C19 49 19 31 24 20 Z" fill="url(#sylviaMochiBody)" />
-                  <ellipse cx="41" cy="35" rx="3.1" ry="4.7" fill="#171827" />
-                  <ellipse cx="59" cy="35" rx="3.1" ry="4.7" fill="#171827" />
-                  <circle cx="40" cy="33.5" r="1" fill="#fff" opacity=".9" />
-                  <circle cx="58" cy="33.5" r="1" fill="#fff" opacity=".9" />
-                  <path d="M45 48 Q50 51 55 48" stroke="#999ebd" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity=".9" />
-                </svg>
+                <SylviaDotPal
+                  character={selectedCharacter}
+                  state={dotPalState}
+                  size={84}
+                  text={dotPalState === 'idle' ? undefined : status.headline}
+                  className="sylvia-dotpal-character"
+                />
                 {isListening && <span className="sylvia-mochi-listening-ring" aria-hidden="true" />}
               </button>
 
@@ -203,6 +297,90 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
             <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{status.headline}</h1>
             <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{status.detail}</p>
           </section>
+
+          <div className="sylvia-pal-tools">
+            <label className="sylvia-pal-picker">
+              <span>Companion</span>
+              <select
+                value={selectedCharacter}
+                onChange={event => chooseCharacter(event.target.value)}
+                aria-label="Choose Sylvia's character"
+              >
+                {DOTPALS_CHARACTERS.map(character => (
+                  <option key={character.id} value={character.id}>{character.label}</option>
+                ))}
+                {hasCustomPal && <option value={CUSTOM_PAL_ID}>My Sylvia · custom</option>}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="sylvia-pal-create-toggle"
+              onClick={() => setCustomizeOpen(open => !open)}
+              aria-expanded={customizeOpen}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {customizeOpen ? 'Close creator' : 'Create a pal'}
+            </button>
+          </div>
+
+          {customizeOpen && (
+            <form onSubmit={saveCustomPal} className="sylvia-pal-creator">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-white">Make your own companion</h2>
+                  <p className="mt-1 text-xs text-slate-500">Built with Dotpals’ character creator.</p>
+                </div>
+                <span className="sylvia-pal-color-swatch" style={{ backgroundColor: customColor }} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <label className="sylvia-pal-field">
+                  <span>Body</span>
+                  <select value={customShape} onChange={event => setCustomShape(event.target.value as NonNullable<CustomPal['shape']>)}>
+                    <option value="round">Round</option>
+                    <option value="square">Square</option>
+                    <option value="blob">Fluffy</option>
+                    <option value="tall">Tall</option>
+                    <option value="heart">Heart</option>
+                    <option value="bean">Frog</option>
+                  </select>
+                </label>
+                <label className="sylvia-pal-field">
+                  <span>Eyes</span>
+                  <select value={customEyes} onChange={event => setCustomEyes(event.target.value as NonNullable<CustomPal['eyes']>)}>
+                    <option value="dots">Dots</option>
+                    <option value="round">Button</option>
+                    <option value="googly">Googly</option>
+                    <option value="pixel">Pixel</option>
+                    <option value="visor">Visor</option>
+                    <option value="shades">Shades</option>
+                  </select>
+                </label>
+                <label className="sylvia-pal-field">
+                  <span>Top</span>
+                  <select value={customTop} onChange={event => setCustomTop(event.target.value as NonNullable<CustomPal['top']>)}>
+                    <option value="none">Nothing</option>
+                    <option value="ears">Cat ears</option>
+                    <option value="horns">Horns</option>
+                    <option value="antenna">Antenna</option>
+                    <option value="sprout">Sprout</option>
+                    <option value="sparkle">Sparkle</option>
+                    <option value="bow">Bow</option>
+                    <option value="crown">Crown</option>
+                    <option value="beret">Beret</option>
+                  </select>
+                </label>
+                <label className="sylvia-pal-field">
+                  <span>Colour</span>
+                  <input type="color" value={customColor} onChange={event => setCustomColor(event.target.value)} aria-label="Custom character colour" />
+                </label>
+              </div>
+              <div className="mt-3 flex justify-end">
+                <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-400">
+                  <Sparkles className="h-3.5 w-3.5" /> Save my character
+                </button>
+              </div>
+            </form>
+          )}
 
           {waitingApprovals.length > 0 && (
             <button type="button" onClick={() => onOpenWorkspace('chat')} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] p-3.5 text-left transition hover:bg-amber-400/[0.11]">
