@@ -315,3 +315,208 @@
     animation: none;
   }
 }
+
+
+/* Minimal island companion inspired by floating desktop companions. */
+.sylvia-reference-island {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr);
+  align-items: center;
+  width: min(100%, 460px);
+  min-height: 82px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(18, 20, 29, 0.98), rgba(5, 6, 11, 0.98));
+  box-shadow: 0 20px 58px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  isolation: isolate;
+}
+
+.sylvia-reference-island::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, rgba(117, 132, 255, 0.12), transparent 62%);
+  pointer-events: none;
+}
+
+.sylvia-reference-island-listening {
+  border-color: rgba(103, 211, 255, 0.32);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.48), 0 0 34px rgba(56, 189, 248, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.sylvia-reference-island-working {
+  border-color: rgba(129, 140, 248, 0.32);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.48), 0 0 34px rgba(99, 102, 241, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.sylvia-reference-island-waiting {
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.sylvia-island-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sylvia-island-controls-left {
+  justify-content: flex-start;
+}
+
+.sylvia-island-controls-right {
+  justify-content: flex-end;
+}
+
+.sylvia-island-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: rgba(226, 232, 240, 0.72);
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.sylvia-island-icon:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.sylvia-island-icon:active {
+  transform: scale(0.94);
+}
+
+.sylvia-island-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.sylvia-mochi-button {
+  position: relative;
+  display: flex;
+  width: 54px;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  padding: 0;
+  border: 0;
+  border-radius: 19px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 180ms ease, filter 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sylvia-mochi-button:hover {
+  transform: translateY(-2px) scale(1.04);
+  filter: drop-shadow(0 0 14px rgba(165, 180, 252, 0.3));
+}
+
+.sylvia-mochi-button:active {
+  transform: scale(0.94);
+}
+
+.sylvia-mochi-art {
+  position: relative;
+  z-index: 1;
+  width: 52px;
+  height: 46px;
+  overflow: visible;
+  filter: drop-shadow(0 3px 7px rgba(255, 255, 255, 0.12));
+  animation: sylvia-mochi-float 3.6s ease-in-out infinite;
+}
+
+.sylvia-mochi-arms {
+  transform-origin: center;
+  animation: sylvia-mochi-wave 3.6s ease-in-out infinite;
+}
+
+.sylvia-mochi-listening-ring {
+  position: absolute;
+  inset: 1px;
+  border: 1px solid rgba(125, 211, 252, 0.62);
+  border-radius: 20px;
+  animation: sylvia-mochi-ring 1.7s ease-out infinite;
+  pointer-events: none;
+}
+
+.sylvia-mochi-listening .sylvia-mochi-art {
+  filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.6));
+}
+
+.sylvia-mochi-working .sylvia-mochi-art {
+  filter: drop-shadow(0 0 10px rgba(165, 180, 252, 0.54));
+}
+
+.sylvia-mochi-waiting .sylvia-mochi-art {
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.3));
+}
+
+@keyframes sylvia-mochi-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-1deg); }
+}
+
+@keyframes sylvia-mochi-wave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-1.5px) rotate(-2deg); }
+}
+
+@keyframes sylvia-mochi-ring {
+  0% { transform: scale(0.82); opacity: 0.85; }
+  100% { transform: scale(1.38); opacity: 0; }
+}
+
+@media (max-width: 420px) {
+  .sylvia-reference-island {
+    grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr);
+    min-height: 76px;
+    padding: 8px 10px;
+  }
+
+  .sylvia-island-controls {
+    gap: 2px;
+  }
+
+  .sylvia-island-icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .sylvia-mochi-button {
+    width: 50px;
+    height: 50px;
+  }
+
+  .sylvia-mochi-art {
+    width: 48px;
+    height: 43px;
+  }
+
+  .sylvia-island-controls-right .sylvia-island-status-dot {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sylvia-mochi-art,
+  .sylvia-mochi-arms,
+  .sylvia-mochi-listening-ring {
+    animation: none;
+  }
+}
