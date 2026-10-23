@@ -16,8 +16,9 @@ import { ActivityFeed } from './components/ActivityFeed';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
+import { SylviaCompanionHome } from './components/SylviaCompanionHome';
 import { NavView } from './types';
-import { Menu, Sparkles, Target, Dna } from 'lucide-react';
+import { Menu, Sparkles, Target, Dna, Minimize2 } from 'lucide-react';
 
 export function App() {
   const {
@@ -64,6 +65,7 @@ export function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
 
   useEffect(() => {
     if (voiceOutputEnabled && chatMessages.length > 0) {
@@ -109,9 +111,41 @@ export function App() {
     sendMessage(text);
   };
 
+  if (!workspaceExpanded) {
+    return (
+      <SylviaCompanionHome
+        state={sylviaState}
+        health={health}
+        chatMessages={chatMessages}
+        pendingApprovals={pendingApprovals}
+        isListening={isListening}
+        voiceOutputEnabled={voiceOutputEnabled}
+        audioLevel={audioLevel}
+        transcript={transcript}
+        onSendMessage={sendMessage}
+        onToggleListening={handleToggleListening}
+        onToggleVoiceOutput={toggleVoiceOutput}
+        onOpenWorkspace={view => {
+          setActiveView(view);
+          setWorkspaceExpanded(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="relative w-screen h-screen bg-[#030712] text-slate-100 flex overflow-hidden font-sans select-none">
       <StarField sylviaState={sylviaState} />
+      <button
+        type="button"
+        onClick={() => setWorkspaceExpanded(false)}
+        className="fixed bottom-5 right-5 z-[100] inline-flex items-center gap-2 rounded-full border border-indigo-300/20 bg-slate-950/95 px-3.5 py-2.5 text-xs font-medium text-slate-200 shadow-2xl shadow-black/50 backdrop-blur-xl transition hover:border-indigo-300/40 hover:bg-indigo-950/90"
+        aria-label="Minimize to Sylvia companion"
+        title="Return to Sylvia companion"
+      >
+        <Minimize2 className="h-3.5 w-3.5 text-indigo-200" />
+        <span>Companion</span>
+      </button>
 
       <div className={`fixed inset-y-0 left-0 z-40 md:static transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <Sidebar
