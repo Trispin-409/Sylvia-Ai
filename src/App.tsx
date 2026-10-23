@@ -51,11 +51,11 @@ export function App() {
   } = useSylvia();
 
   const {
-    isListening,
+    isListening: browserIsListening,
     startListening,
     stopListening,
     audioLevel,
-    transcript,
+    transcript: browserTranscript,
     voiceOutputEnabled,
     toggleVoiceOutput,
     speak,
@@ -67,13 +67,37 @@ export function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
+  const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
+  const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
+  const isNativeCompanionOverlay = isNativeAndroid && Boolean(window.SylviaAndroid?.isCompanionOverlay());
+  const isListening = isNativeAndroid ? nativeVoiceState.isListening : browserIsListening;
+  const transcript = isNativeAndroid ? (nativeVoiceState.transcript || '') : browserTranscript;
 
   useEffect(() => {
     if (voiceOutputEnabled && chatMessages.length > 0) {
       const lastMsg = chatMessages[chatMessages.length - 1];
-      if (lastMsg.sender === 'sylvia' && !lastMsg.approvalRequest) speak(lastMsg.text);
+      if (lastMsg.sender === 'sylvia' && !lastMsg.approvalRequest) {
+        if (isNativeAndroid) window.SylviaAndroid?.speakText(lastMsg.text);
+        else speak(lastMsg.text);
+      }
     }
-  }, [chatMessages, voiceOutputEnabled, speak]);
+  }, [chatMessages, voiceOutputEnabled, speak, isNativeAndroid]);
+
+  useEffect(() => {
+    const handleNativeVoiceState = (event: Event) => {
+      const detail = (event as CustomEvent<SylviaNativeVoiceState>).detail;
+      if (!detail) return;
+      setNativeVoiceState({
+        isListening: Boolean(detail.isListening),
+        transcript: typeof detail.transcript === 'string' ? detail.transcript : '',
+      });
+      if (detail.error) {
+        console.warn('Sylvia native voice:', detail.error);
+      }
+    };
+    window.addEventListener('sylvia:native-voice-state', handleNativeVoiceState);
+    return () => window.removeEventListener('sylvia:native-voice-state', handleNativeVoiceState);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -87,6 +111,10 @@ export function App() {
   }, []);
 
   const handleToggleListening = () => {
+    if (isNativeAndroid) {
+      window.SylviaAndroid?.toggleListening();
+      return;
+    }
     if (isListening) stopListening();
     else startListening();
   };
@@ -112,6 +140,23 @@ export function App() {
     sendMessage(text);
   };
 
+  useEffect(() => {
+    const handleNativeOpenWorkspace = (event: Event) => {
+      const detail = (event as CustomEvent<{ view?: string; prompt?: string }>).detail;
+      if (!detail) return;
+      const allowedViews: NavView[] = [
+        'chat', 'specialists', 'missions', 'memory', 'workspace-gmail',
+        'workspace-calendar', 'activity', 'mission-control',
+      ];
+      const view = allowedViews.includes(detail.view as NavView) ? detail.view as NavView : 'chat';
+      setActiveView(view);
+      setWorkspaceExpanded(true);
+      if (detail.prompt?.trim()) sendMessage(detail.prompt.trim());
+    };
+    window.addEventListener('sylvia:native-open-workspace', handleNativeOpenWorkspace);
+    return () => window.removeEventListener('sylvia:native-open-workspace', handleNativeOpenWorkspace);
+  }, [sendMessage, setActiveView]);
+
   if (!workspaceExpanded) {
     return (
       <SylviaCompanionHome
@@ -122,17 +167,25 @@ export function App() {
         pendingApprovals={pendingApprovals}
         isListening={isListening}
         voiceOutputEnabled={voiceOutputEnabled}
-        audioLevel={audioLevel}
         transcript={transcript}
         onSendMessage={text => {
-          handleSendMessage(text);
-          if (/gmail|email|inbox|calendar|meeting|schedule/i.test(text)) {
-            setWorkspaceExpanded(true);
+          const lower = text.toLowerCase();
+          const isWorkspaceRequest = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
+          const view: NavView = /calendar|meeting|schedule/.test(lower) ? 'workspace-calendar' : 'workspace-gmail';
+          if (isNativeCompanionOverlay && isWorkspaceRequest) {
+            window.SylviaAndroid?.openFullApp(view, text);
+            return;
           }
+          handleSendMessage(text);
+          if (isWorkspaceRequest) setWorkspaceExpanded(true);
         }}
         onToggleListening={handleToggleListening}
         onToggleVoiceOutput={toggleVoiceOutput}
         onOpenWorkspace={view => {
+          if (isNativeCompanionOverlay) {
+            window.SylviaAndroid?.openFullApp(view);
+            return;
+          }
           setActiveView(view);
           setWorkspaceExpanded(true);
         }}
@@ -145,7 +198,13 @@ export function App() {
       <StarField sylviaState={sylviaState} />
       <button
         type="button"
-        onClick={() => setWorkspaceExpanded(false)}
+        onClick={() => {
+          if (isNativeAndroid) {
+            window.SylviaAndroid?.minimizeToCompanion();
+            return;
+          }
+          setWorkspaceExpanded(false);
+        }}
         className="fixed bottom-5 right-5 z-[100] inline-flex items-center gap-2 rounded-full border border-indigo-300/20 bg-slate-950/95 px-3.5 py-2.5 text-xs font-medium text-slate-200 shadow-2xl shadow-black/50 backdrop-blur-xl transition hover:border-indigo-300/40 hover:bg-indigo-950/90"
         aria-label="Minimize to Sylvia companion"
         title="Return to Sylvia companion"
