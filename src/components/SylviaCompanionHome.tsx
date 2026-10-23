@@ -190,7 +190,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
               <textarea value={command} onChange={event => setCommand(event.target.value)} rows={2} maxLength={6000} placeholder={isListening ? 'Listening… speak now or type here' : 'Ask Sylvia to do something…'} className="max-h-32 min-h-[54px] w-full resize-y bg-transparent px-2 py-1.5 text-sm leading-6 text-white outline-none placeholder:text-slate-500" aria-label="Command for Sylvia" />
               <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2">
                 <button type="button" onClick={onToggleListening} className={'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition ' + (isListening ? 'bg-sky-400/15 text-sky-200' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100')} aria-pressed={isListening}>
-                  {isListening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}{isListening ? 'Stop listening' : 'Speak'}
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{isListening ? 'Stop listening' : 'Speak'}
                 </button>
                 <button type="submit" disabled={!command.trim() || busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40">
                   {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}{busy ? 'Working' : 'Send'}
