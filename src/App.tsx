@@ -16,6 +16,7 @@ import { ActivityFeed } from './components/ActivityFeed';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
+import { CareerPanel } from './components/CareerPanel';
 import { NavView } from './types';
 import { Menu, Sparkles, Target, Dna } from 'lucide-react';
 
@@ -160,6 +161,15 @@ export function App() {
                 />
               </div>
             </div>
+          )}
+
+          {activeView === 'career' && (
+            <CareerPanel
+              onAskSylvia={prompt => {
+                setActiveView('chat');
+                handleSendMessage(prompt);
+              }}
+            />
           )}
 
           {activeView === 'specialists' && (
