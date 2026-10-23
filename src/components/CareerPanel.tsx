@@ -123,7 +123,7 @@ export const CareerPanel: React.FC<CareerPanelProps> = ({ onAskSylvia }) => {
   const completedTasks = profile.tasks.filter(task => task.completed).length;
   const nextTask = profile.tasks.find(task => !task.completed);
 
-  const updateField = <K extends 'fullName' | 'targetRole' | 'education' | 'experience' | 'constraints>(
+  const updateField = <K extends 'fullName' | 'targetRole' | 'education' | 'experience' | 'constraints'>(
     field: K,
     value: CareerProfile[K],
   ) => setProfile(previous => ({ ...previous, [field]: value }));
