@@ -154,7 +154,7 @@ export function App() {
       if (detail.prompt?.trim()) sendMessage(detail.prompt.trim());
     };
     window.addEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
-    return () => window.removeEventListener('sylvia:native-open-workspace', handleNativeOpenWorkspace);
+    return () => window.removeEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
   }, [sendMessage, setActiveView]);
 
   if (!workspaceExpanded) {
