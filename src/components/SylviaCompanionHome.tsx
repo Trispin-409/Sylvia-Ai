@@ -150,11 +150,81 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
               <span className="h-3 w-px bg-white/10" />
               <span className="text-[11px] text-slate-400">{status.label}</span>
             </div>
-
-            <button type="button" className={'sylvia-companion-avatar sylvia-companion-avatar-' + status.tone + ' relative flex h-28 w-28 items-center justify-center rounded-[34px] border border-white/15 bg-gradient-to-br from-[#384a98] via-[#6755b9] to-[#2f9cae] shadow-[0_20px_60px_rgba(72,79,186,0.24)] transition-transform hover:scale-[1.025] focus:outline-none focus:ring-2 focus:ring-indigo-300/70 sm:h-32 sm:w-32 sm:rounded-[38px]'} onClick={onToggleListening} aria-label={isListening ? 'Stop listening to Sylvia' : 'Start listening to Sylvia'} title={isListening ? 'Stop listening' : 'Tap to speak to Sylvia'}>
-              <div className="sylvia-avatar-shine" aria-hidden="true" />
-              <div className={'sylvia-avatar-eyes ' + (isListening ? 'sylvia-avatar-eyes-listening' : '')} aria-hidden="true"><span /><span /></div>
-              <div className="sylvia-avatar-mouth" aria-hidden="true" />
+            <button
+              type="button"
+              className={'sylvia-companion-avatar sylvia-companion-avatar-' + status.tone + ' relative flex h-[190px] w-[190px] items-center justify-center border-0 bg-transparent p-0 transition-transform focus:outline-none focus:ring-2 focus:ring-indigo-300/70 sm:h-[224px] sm:w-[224px]'}
+              onClick={onToggleListening}
+              aria-label={isListening ? 'Stop listening to Sylvia' : 'Start listening to Sylvia'}
+              title={isListening ? 'Stop listening' : 'Tap to speak to Sylvia'}
+            >
+              <span className="sylvia-character-aura" aria-hidden="true" />
+              <span className="sylvia-character-orbit sylvia-character-orbit-one" aria-hidden="true" />
+              <span className="sylvia-character-orbit sylvia-character-orbit-two" aria-hidden="true" />
+              <svg className="sylvia-character-art relative z-10 h-full w-full" viewBox="0 0 240 260" role="img" aria-label="Sylvia, your AI companion">
+                <defs>
+                  <linearGradient id="sylviaHair" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#aaa6ff" />
+                    <stop offset="46%" stopColor="#7775e9" />
+                    <stop offset="100%" stopColor="#373d91" />
+                  </linearGradient>
+                  <linearGradient id="sylviaHairLight" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#e1dcff" />
+                    <stop offset="100%" stopColor="#7c8bff" />
+                  </linearGradient>
+                  <linearGradient id="sylviaSkin" x1="0" y1="0" x2="0.9" y2="1">
+                    <stop offset="0%" stopColor="#fff0e9" />
+                    <stop offset="100%" stopColor="#d7b5d7" />
+                  </linearGradient>
+                  <linearGradient id="sylviaSuit" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#8d92ff" />
+                    <stop offset="55%" stopColor="#5656bd" />
+                    <stop offset="100%" stopColor="#252e6d" />
+                  </linearGradient>
+                  <linearGradient id="sylviaCore" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#a5f3fc" />
+                    <stop offset="100%" stopColor="#a78bfa" />
+                  </linearGradient>
+                  <filter id="sylviaSoftGlow" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur stdDeviation="5" />
+                  </filter>
+                </defs>
+                <ellipse cx="120" cy="238" rx="65" ry="9" fill="#6e73ed" opacity=".25" filter="url(#sylviaSoftGlow)" />
+                <path d="M43 235 C48 204 71 187 99 184 L141 184 C169 187 192 204 197 235 L197 250 L43 250 Z" fill="url(#sylviaSuit)" stroke="#b6bbff" strokeOpacity=".55" strokeWidth="1.5" />
+                <path d="M91 186 L120 213 L149 186 L143 250 L97 250 Z" fill="#1b275d" opacity=".72" />
+                <path d="M107 177 L107 201 L120 213 L133 201 L133 177 Z" fill="url(#sylviaSkin)" />
+                <path d="M78 81 C67 44 91 22 119 22 C154 22 176 47 166 92 L164 144 C161 176 141 193 120 193 C94 193 76 172 74 142 Z" fill="url(#sylviaHair)" />
+                <path d="M75 89 C57 100 55 130 65 153 C71 168 81 178 92 182 L91 142 Z" fill="url(#sylviaHair)" />
+                <path d="M164 85 C185 103 185 136 171 159 C164 172 156 180 147 184 L150 139 Z" fill="url(#sylviaHair)" />
+                <path d="M78 85 C77 58 93 38 121 38 C148 38 164 61 160 93 L155 136 C151 158 136 172 120 172 C102 172 87 156 84 135 Z" fill="url(#sylviaSkin)" />
+                <path d="M73 94 C67 58 88 29 118 26 C148 23 170 51 164 90 L158 105 C149 95 146 78 144 63 C130 83 104 91 82 96 L80 116 Z" fill="url(#sylviaHair)" />
+                <path d="M86 54 C100 35 132 30 151 54" fill="none" stroke="url(#sylviaHairLight)" strokeWidth="5" strokeLinecap="round" opacity=".85" />
+                <path d="M84 104 C96 92 109 92 117 100" fill="none" stroke="#665b9e" strokeWidth="3" strokeLinecap="round" />
+                <path d="M124 100 C134 91 147 93 155 103" fill="none" stroke="#665b9e" strokeWidth="3" strokeLinecap="round" />
+                <ellipse cx="101" cy="113" rx="9" ry="10" fill="#fff" />
+                <ellipse cx="140" cy="113" rx="9" ry="10" fill="#fff" />
+                <ellipse cx="103" cy="115" rx="4.4" ry="6.1" fill="#5552b5" />
+                <ellipse cx="138" cy="115" rx="4.4" ry="6.1" fill="#5552b5" />
+                <circle cx="104.5" cy="112.5" r="1.7" fill="#fff" />
+                <circle cx="139.5" cy="112.5" r="1.7" fill="#fff" />
+                <path d="M120 119 L116 132 Q120 136 124 132" fill="none" stroke="#bb879f" strokeWidth="2" strokeLinecap="round" />
+                <path d="M108 146 Q120 155 132 146" fill="none" stroke="#a94d82" strokeWidth="3" strokeLinecap="round" />
+                <ellipse cx="90" cy="135" rx="9" ry="5" fill="#f2a9c3" opacity=".35" />
+                <ellipse cx="150" cy="135" rx="9" ry="5" fill="#f2a9c3" opacity=".35" />
+                <path d="M76 88 C66 107 68 140 80 158 C84 165 90 169 96 173 C82 151 83 123 84 104 Z" fill="url(#sylviaHair)" />
+                <path d="M162 86 C173 111 169 143 157 159 C152 166 146 170 141 173 C155 149 154 122 153 101 Z" fill="url(#sylviaHair)" />
+                <path d="M96 194 L120 216 L144 194 L154 203 L142 250 L98 250 L86 203 Z" fill="url(#sylviaSuit)" stroke="#b7c6ff" strokeOpacity=".3" strokeWidth="1.2" />
+                <path d="M101 197 L120 214 L139 197 L135 207 L120 222 L105 207 Z" fill="#d8ddff" opacity=".9" />
+                <circle cx="120" cy="232" r="9" fill="url(#sylviaCore)" opacity=".2" />
+                <circle cx="120" cy="232" r="4.5" fill="url(#sylviaCore)" />
+                <path d="M59 96 C51 79 56 60 69 53" fill="none" stroke="#8ee9ff" strokeWidth="2.5" strokeLinecap="round" opacity=".8" />
+                <path d="M181 96 C189 79 184 60 171 53" fill="none" stroke="#8ee9ff" strokeWidth="2.5" strokeLinecap="round" opacity=".8" />
+                <circle cx="61" cy="100" r="5" fill="#a5f3fc" stroke="#e0fbff" strokeWidth="1.5" />
+                <circle cx="179" cy="100" r="5" fill="#a5f3fc" stroke="#e0fbff" strokeWidth="1.5" />
+                <path d="M108 30 L120 12 L132 30" fill="none" stroke="#a5f3fc" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="120" cy="10" r="5" fill="#a5f3fc" />
+                <circle cx="120" cy="10" r="10" fill="#a5f3fc" opacity=".2" filter="url(#sylviaSoftGlow)" />
+                <path d="M87 74 C99 86 131 85 151 63" fill="none" stroke="#d5d2ff" strokeWidth="2" strokeLinecap="round" opacity=".65" />
+              </svg>
               {status.tone === 'working' && <span className="sylvia-avatar-spark sylvia-avatar-spark-one" aria-hidden="true">✦</span>}
               {status.tone === 'success' && <span className="sylvia-avatar-spark sylvia-avatar-spark-two" aria-hidden="true">✦</span>}
             </button>
