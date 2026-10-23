@@ -520,3 +520,222 @@
     animation: none;
   }
 }
+
+
+/* Dotpals character inside Sylvia's Coucou-inspired island. */
+.sylvia-reference-island {
+  grid-template-columns: minmax(0, 1fr) 98px minmax(0, 1fr);
+  width: min(100%, 500px);
+  min-height: 110px;
+  padding: 7px 16px;
+}
+
+.sylvia-mochi-button {
+  width: 94px;
+  height: 94px;
+  overflow: visible;
+  border-radius: 50%;
+  background: transparent;
+  filter: none;
+}
+
+.sylvia-mochi-button:hover {
+  transform: translateY(-1px) scale(1.025);
+}
+
+.sylvia-dotpal-mount {
+  display: flex;
+  width: 90px;
+  height: 90px;
+  flex: 0 0 90px;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.sylvia-dotpal-mount dot-pal {
+  display: inline-block;
+  width: 88px;
+  height: 88px;
+  --dp-size: 88px;
+  --dp-glow-work: rgba(129, 140, 248, 0.9);
+}
+
+.sylvia-mochi-button:hover .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 12px rgba(165, 180, 252, 0.3));
+}
+
+.sylvia-mochi-listening .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.5));
+}
+
+.sylvia-mochi-working .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 12px rgba(165, 180, 252, 0.42));
+}
+
+.sylvia-mochi-waiting .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.3));
+}
+
+.sylvia-pal-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: -2px 0 18px;
+}
+
+.sylvia-pal-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 11px;
+}
+
+.sylvia-pal-picker select {
+  max-width: 185px;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sylvia-pal-picker option,
+.sylvia-pal-field option {
+  background: #0a0f1b;
+  color: #e2e8f0;
+}
+
+.sylvia-pal-create-toggle {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.07);
+  color: #c7d2fe;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.sylvia-pal-create-toggle:hover {
+  border-color: rgba(165, 180, 252, 0.4);
+  background: rgba(129, 140, 248, 0.13);
+}
+
+.sylvia-pal-creator {
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 21px;
+  background: rgba(10, 15, 27, 0.82);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.sylvia-pal-color-swatch {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.045);
+}
+
+.sylvia-pal-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.sylvia-pal-field select {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.24);
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.sylvia-pal-field select:focus {
+  border-color: rgba(165, 180, 252, 0.55);
+}
+
+.sylvia-pal-field input[type="color"] {
+  width: 100%;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+
+@media (max-width: 420px) {
+  .sylvia-reference-island {
+    grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+    min-height: 98px;
+    padding: 6px 10px;
+  }
+
+  .sylvia-mochi-button {
+    width: 86px;
+    height: 86px;
+  }
+
+  .sylvia-dotpal-mount {
+    width: 82px;
+    height: 82px;
+    flex-basis: 82px;
+  }
+
+  .sylvia-dotpal-mount dot-pal {
+    width: 80px;
+    height: 80px;
+    --dp-size: 80px;
+  }
+
+  .sylvia-island-controls {
+    gap: 2px;
+  }
+
+  .sylvia-island-icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .sylvia-island-controls-right .sylvia-island-status-dot {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sylvia-mochi-button,
+  .sylvia-mochi-listening-ring {
+    animation: none;
+  }
+}
