@@ -177,103 +177,119 @@
 }
 
 .sylvia-companion-avatar {
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
-  animation: sylvia-companion-float 4.8s ease-in-out infinite;
   cursor: pointer;
+  animation: sylvia-companion-float 4.8s ease-in-out infinite;
+  transform-origin: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sylvia-companion-avatar:hover .sylvia-character-art {
+  filter: drop-shadow(0 14px 24px rgba(95, 103, 240, 0.24)) brightness(1.04);
 }
 
 .sylvia-companion-avatar-listening {
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.055), 0 20px 65px rgba(56, 189, 248, 0.2);
   animation-duration: 2.2s;
 }
 
 .sylvia-companion-avatar-working {
-  box-shadow: 0 0 0 6px rgba(129, 140, 248, 0.05), 0 20px 65px rgba(99, 102, 241, 0.24);
+  animation-duration: 3.2s;
 }
 
-.sylvia-companion-avatar-waiting {
-  box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.055), 0 20px 65px rgba(245, 158, 11, 0.15);
+.sylvia-companion-avatar-waiting .sylvia-character-art {
+  filter: drop-shadow(0 8px 22px rgba(245, 158, 11, 0.18));
 }
 
-.sylvia-avatar-shine {
+.sylvia-character-art {
+  overflow: visible;
+  filter: drop-shadow(0 12px 20px rgba(72, 79, 186, 0.2));
+  transition: filter 220ms ease;
+}
+
+.sylvia-character-aura {
   position: absolute;
-  inset: 0;
+  z-index: 0;
+  width: 74%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(103, 80, 224, 0.33) 0%, rgba(62, 110, 211, 0.15) 44%, transparent 72%);
+  filter: blur(9px);
+  animation: sylvia-aura-breathe 4.6s ease-in-out infinite;
   pointer-events: none;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 26% 10%, rgba(255, 255, 255, 0.27), transparent 42%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.06), transparent 54%);
 }
 
-.sylvia-avatar-eyes {
+.sylvia-character-orbit {
   position: absolute;
-  top: 38%;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 18px;
-  transition: transform 180ms ease;
+  z-index: 0;
+  border: 1px solid rgba(165, 180, 252, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.sylvia-avatar-eyes span {
-  position: relative;
-  width: 14px;
-  height: 19px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: inset 0 -2px 2px rgba(17, 24, 39, 0.12);
+.sylvia-character-orbit-one {
+  width: 94%;
+  height: 59%;
+  transform: rotate(-21deg);
+  border-left-color: rgba(103, 232, 249, 0.42);
+  border-right-color: rgba(165, 180, 252, 0.07);
+  animation: sylvia-orbit-breathe 8s ease-in-out infinite;
 }
 
-.sylvia-avatar-eyes span::after {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 8px;
-  left: 5px;
-  top: 6px;
-  border-radius: 999px;
-  background: #17203d;
+.sylvia-character-orbit-two {
+  width: 72%;
+  height: 97%;
+  transform: rotate(26deg);
+  border-top-color: rgba(196, 181, 253, 0.34);
+  border-bottom-color: rgba(103, 232, 249, 0.08);
+  animation: sylvia-orbit-breathe 9s ease-in-out infinite reverse;
 }
 
-.sylvia-avatar-eyes-listening span {
-  height: 13px;
-  transform: translateY(2px);
+.sylvia-companion-avatar-listening .sylvia-character-aura {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.34) 0%, rgba(56, 189, 248, 0.14) 48%, transparent 72%);
 }
 
-.sylvia-avatar-mouth {
-  position: absolute;
-  top: 61%;
-  left: calc(50% - 11px);
-  width: 22px;
-  height: 10px;
-  border-bottom: 3px solid rgba(255, 255, 255, 0.86);
-  border-radius: 0 0 999px 999px;
+.sylvia-companion-avatar-working .sylvia-character-aura {
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.4) 0%, rgba(99, 102, 241, 0.17) 48%, transparent 72%);
+}
+
+.sylvia-companion-avatar-waiting .sylvia-character-aura {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, rgba(245, 158, 11, 0.1) 48%, transparent 72%);
 }
 
 .sylvia-avatar-spark {
   position: absolute;
-  color: rgba(255, 255, 255, 0.9);
+  z-index: 20;
+  color: rgba(255, 255, 255, 0.94);
   font-size: 18px;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+  filter: drop-shadow(0 0 8px rgba(165, 180, 252, 0.7));
+  pointer-events: none;
 }
 
 .sylvia-avatar-spark-one {
-  right: 16px;
-  top: 17px;
+  right: 5%;
+  top: 16%;
   animation: sylvia-sparkle 1.8s ease-in-out infinite;
 }
 
 .sylvia-avatar-spark-two {
-  right: 15px;
-  bottom: 18px;
+  right: 11%;
+  bottom: 14%;
   animation: sylvia-sparkle 1.8s ease-in-out infinite;
 }
 
 .sylvia-companion-panel {
   box-shadow: 0 18px 55px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+@keyframes sylvia-aura-breathe {
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes sylvia-orbit-breathe {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 0.96; }
 }
 
 @keyframes sylvia-companion-float {
