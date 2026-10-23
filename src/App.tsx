@@ -123,7 +123,12 @@ export function App() {
         voiceOutputEnabled={voiceOutputEnabled}
         audioLevel={audioLevel}
         transcript={transcript}
-        onSendMessage={sendMessage}
+        onSendMessage={text => {
+          handleSendMessage(text);
+          if (/gmail|email|inbox|calendar|meeting|schedule/i.test(text)) {
+            setWorkspaceExpanded(true);
+          }
+        }}
         onToggleListening={handleToggleListening}
         onToggleVoiceOutput={toggleVoiceOutput}
         onOpenWorkspace={view => {
