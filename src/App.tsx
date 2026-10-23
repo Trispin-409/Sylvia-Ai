@@ -153,7 +153,7 @@ export function App() {
       setWorkspaceExpanded(true);
       if (detail.prompt?.trim()) sendMessage(detail.prompt.trim());
     };
-    window.addEventListener('sylvia:native-open-workspace', handleNativeOpenWorkspace);
+    window.addEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
     return () => window.removeEventListener('sylvia:native-open-workspace', handleNativeOpenWorkspace);
   }, [sendMessage, setActiveView]);
 
@@ -173,7 +173,7 @@ export function App() {
           const isWorkspaceRequest = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
           const view: NavView = /calendar|meeting|schedule/.test(lower) ? 'workspace-calendar' : 'workspace-gmail';
           if (isNativeCompanionOverlay && isWorkspaceRequest) {
-            window.SylviaAndroid?.openFullApp(view, text);
+            window.SylviaAndroid?.expandCompanion(view, text);
             return;
           }
           handleSendMessage(text);
@@ -183,7 +183,7 @@ export function App() {
         onToggleVoiceOutput={toggleVoiceOutput}
         onOpenWorkspace={view => {
           if (isNativeCompanionOverlay) {
-            window.SylviaAndroid?.openFullApp(view);
+            window.SylviaAndroid?.expandCompanion(view);
             return;
           }
           setActiveView(view);
@@ -200,7 +200,7 @@ export function App() {
         type="button"
         onClick={() => {
           if (isNativeAndroid) {
-            window.SylviaAndroid?.minimizeToCompanion();
+            window.SylviaAndroid?.collapseCompanion();
             return;
           }
           setWorkspaceExpanded(false);
