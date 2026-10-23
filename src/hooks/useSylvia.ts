@@ -342,13 +342,32 @@ export function useSylvia() {
     window.setTimeout(() => { setDelegationPath([]); setActiveSpecialistNode(null); setSylviaState('IDLE'); addActivity('Sylvia Core', 'Visual demonstration complete — no Workspace writes executed', 'info', 'DEMO_COMPLETE'); }, 3800);
   }, [addActivity]);
 
+
+  const startNewConversation = useCallback(() => {
+    sylviaApi.resetConversation();
+    setMessages(previous => {
+      const pendingApprovalMessages = previous.filter(message => message.approvalRequest?.status === 'WAITING');
+      return [{
+        id: generateUniqueId('welcome'),
+        sender: 'sylvia',
+        text: 'A new conversation is ready. Any unresolved approval requests have been kept for your review.',
+        timestamp: 'Just now',
+      }, ...pendingApprovalMessages];
+    });
+    setActiveView('chat');
+    setSylviaState('IDLE');
+    setDelegationPath([]);
+    setActiveSpecialistNode(null);
+    addActivity('Sylvia', 'Started a new conversation context; unresolved approvals retained', 'info', 'NEW_SESSION');
+  }, [addActivity]);
+
   return {
     state: sylviaState, sylviaState, setSylviaState, setTemporaryState,
     activeView, setActiveView, chatMessages: messages, messages,
     mission: activeMission, activeMission, decisionDNA, contextMemories,
     specialists, gmailMessages, calendarEvents, pendingApprovals: approvalQueue, approvalQueue,
     activities, health, agentCard, activeDelegationPath: delegationPath, delegationPath, activeSpecialistNode,
-    sendMessage, approveAction, cancelAction: cancelApproval, cancelApproval,
+    sendMessage, startNewConversation, approveAction, cancelAction: cancelApproval, cancelApproval,
     updateMissionStepStatus: updateMissionStep, updateMissionStep, addDecisionRule, addContextMemory,
     runDemoSequence, refreshHealth: checkSystemHealth, refreshWorkspaceHealth, checkSystemHealth, updateBackendUrl, addActivity,
   };
