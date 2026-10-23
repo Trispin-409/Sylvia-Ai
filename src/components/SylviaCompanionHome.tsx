@@ -7,6 +7,7 @@ import {
 import { ApprovalRequest, BackendHealth, ChatItem, NavView, SylviaState } from '../types';
 
 interface SylviaCompanionHomeProps {
+  activeView: NavView;
   state: SylviaState;
   health: BackendHealth;
   chatMessages: ChatItem[];
@@ -93,7 +94,7 @@ const quickActions: Array<{
 ];
 
 export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
-  state, health, chatMessages, pendingApprovals, isListening, voiceOutputEnabled,
+  activeView, state, health, chatMessages, pendingApprovals, isListening, voiceOutputEnabled,
   audioLevel = [], transcript = '', onSendMessage, onToggleListening,
   onToggleVoiceOutput, onOpenWorkspace,
 }) => {
@@ -136,7 +137,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
               {health.connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {health.connected ? 'Backend connected' : 'Backend not confirmed'}
             </div>
-            <button type="button" onClick={() => onOpenWorkspace('chat')} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-indigo-300/30 hover:bg-indigo-400/10" aria-label="Expand Sylvia workspace">
+            <button type="button" onClick={() => onOpenWorkspace(activeView)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-indigo-300/30 hover:bg-indigo-400/10" aria-label="Expand Sylvia workspace">
               <Expand className="h-3.5 w-3.5" /><span>Expand</span>
             </button>
           </div>
@@ -207,7 +208,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
           <section className="mt-5">
             <div className="mb-3 flex items-center justify-between px-1">
               <div><h2 className="text-sm font-semibold text-white">Quick access</h2><p className="mt-1 text-xs text-slate-500">Open a workspace without losing Sylvia.</p></div>
-              <button type="button" onClick={() => onOpenWorkspace('chat')} className="inline-flex items-center gap-1 text-xs text-indigo-200 transition hover:text-white">Full workspace <ArrowRight className="h-3.5 w-3.5" /></button>
+              <button type="button" onClick={() => onOpenWorkspace(activeView)} className="inline-flex items-center gap-1 text-xs text-indigo-200 transition hover:text-white">Full workspace <ArrowRight className="h-3.5 w-3.5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {quickActions.map(action => (
