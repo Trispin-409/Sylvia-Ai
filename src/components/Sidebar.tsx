@@ -20,25 +20,40 @@ import {
   ShieldCheck,
   Flame,
 } from 'lucide-react';
-import { NavView, BackendHealth } from '../types';
+import { NavView, BackendHealth, SylviaState } from '../types';
 
 interface SidebarProps {
   activeView: NavView;
-  setActiveView: (view: NavView) => void;
+  setActiveView?: (view: NavView) => void;
+  onSelectView?: (view: NavView) => void;
+  sylviaState?: SylviaState;
   health: BackendHealth;
   onOpenDiagnostics: () => void;
   pendingApprovalsCount?: number;
-  onNewConversation: () => void;
+  pendingApprovalCount?: number;
+  unreadGmailCount?: number;
+  onNewConversation?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
   setActiveView,
+  onSelectView,
+  sylviaState: _sylviaState,
   health,
   onOpenDiagnostics,
-  pendingApprovalsCount = 0,
+  pendingApprovalsCount,
+  pendingApprovalCount,
+  unreadGmailCount = 0,
   onNewConversation,
 }) => {
+  const changeView = setActiveView ?? onSelectView ?? (() => undefined);
+  const pendingCount = pendingApprovalsCount ?? pendingApprovalCount ?? 0;
+  const startNewConversation = () => {
+    if (onNewConversation) onNewConversation();
+    else changeView('chat');
+  };
+
   return (
     <aside
       id="sylvia-navigation-sidebar"
@@ -64,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3">
         <button
           id="btn-new-conversation"
-          onClick={onNewConversation}
+          onClick={startNewConversation}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-all shadow-sm group"
         >
           <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
@@ -82,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-0.5">
             <button
               id="nav-chat"
-              onClick={() => setActiveView('chat')}
+              onClick={() => changeView('chat')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'chat'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -93,16 +108,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <MessageSquare className="w-4 h-4 text-indigo-400" />
                 <span>Console Stream</span>
               </div>
-              {pendingApprovalsCount > 0 && (
+              {pendingCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/30 text-amber-300 border border-amber-500/50 animate-pulse">
-                  {pendingApprovalsCount}
+                  {pendingCount}
                 </span>
               )}
             </button>
 
             <button
               id="nav-specialists-map"
-              onClick={() => setActiveView('specialists')}
+              onClick={() => changeView('specialists')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'specialists'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -118,6 +133,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        {/* CAREER */}
+        <div>
+          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+            CAREER
+          </div>
+          <div className="space-y-0.5">
+            <button
+              id="nav-career-studio"
+              onClick={() => changeView('career')}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                activeView === 'career'
+                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+              }`}
+              aria-current={activeView === 'career' ? 'page' : undefined}
+            >
+              <div className="flex items-center gap-2.5">
+                <Briefcase className="w-4 h-4 text-emerald-400" />
+                <span>Career Studio</span>
+              </div>
+              <span className="text-[10px] font-mono-code text-emerald-300/80">New</span>
+            </button>
+          </div>
+        </div>
+
         {/* MISSIONS */}
         <div>
           <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
@@ -126,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-0.5">
             <button
               id="nav-mission-control"
-              onClick={() => setActiveView('mission-control')}
+              onClick={() => changeView('mission-control')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'mission-control'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -142,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <button
               id="nav-missions-list"
-              onClick={() => setActiveView('missions')}
+              onClick={() => changeView('missions')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'missions'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -165,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-0.5">
             <button
               id="nav-decision-dna"
-              onClick={() => setActiveView('memory')}
+              onClick={() => changeView('memory')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'memory'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -246,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-0.5">
             <button
               id="nav-workspace-gmail"
-              onClick={() => setActiveView('workspace-gmail')}
+              onClick={() => changeView('workspace-gmail')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'workspace-gmail'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -257,12 +297,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Mail className="w-4 h-4 text-rose-400" />
                 <span>Gmail Inbox</span>
               </div>
-              <span className="text-[10px] font-mono-code text-rose-300/80">3 Unread</span>
+              {unreadGmailCount > 0 && <span className="text-[10px] font-mono-code text-rose-300/80">{unreadGmailCount} Unread</span>}
             </button>
 
             <button
               id="nav-workspace-calendar"
-              onClick={() => setActiveView('workspace-calendar')}
+              onClick={() => changeView('workspace-calendar')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'workspace-calendar'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
@@ -273,7 +313,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <CalendarIcon className="w-4 h-4 text-sky-400" />
                 <span>Calendar Schedule</span>
               </div>
-              <span className="text-[10px] font-mono-code text-sky-300/80">2 Today</span>
+              
             </button>
           </div>
         </div>
@@ -286,7 +326,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-0.5">
             <button
               id="nav-activity-feed"
-              onClick={() => setActiveView('activity')}
+              onClick={() => changeView('activity')}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
                 activeView === 'activity'
                   ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
