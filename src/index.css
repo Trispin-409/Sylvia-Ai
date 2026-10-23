@@ -992,3 +992,395 @@
     animation: none;
   }
 }
+
+
+/* Free-floating Sylvia + capsule chat dock (no frame around the character). */
+.sylvia-companion-root {
+  position: relative;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 43%, rgba(10, 81, 39, 0.2), transparent 42%),
+    radial-gradient(ellipse at 50% 100%, rgba(10, 81, 39, 0.1), transparent 45%),
+    #020704;
+}
+
+.sylvia-main {
+  min-height: 0;
+}
+
+.sylvia-hero-center {
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - 76px);
+  min-height: 540px;
+  flex: 0 0 auto;
+  padding: 0;
+  isolation: isolate;
+}
+
+.sylvia-character-stage {
+  position: absolute;
+  top: 46%;
+  left: 0;
+  right: 0;
+  display: grid;
+  height: 170px;
+  place-items: center;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.sylvia-character-stage::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: min(80vw, 420px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(19, 105, 53, 0.2) 0%, rgba(19, 105, 53, 0.08) 40%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.sylvia-character-entry {
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  animation: sylvia-arrive-from-air 1.45s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.sylvia-floating-pal {
+  position: relative;
+  display: flex;
+  width: 152px;
+  height: 152px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline-offset: 7px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: sylvia-character-hover 4.2s ease-in-out 1.45s infinite;
+  transition: filter 180ms ease, scale 180ms ease;
+}
+
+.sylvia-floating-pal::before,
+.sylvia-floating-pal::after {
+  content: none !important;
+}
+
+.sylvia-floating-pal:hover {
+  filter: drop-shadow(0 12px 28px rgba(94, 219, 142, 0.2));
+  scale: 1.035;
+}
+
+.sylvia-floating-pal:active {
+  scale: 0.97;
+}
+
+.sylvia-floating-pal .sylvia-dotpal-mount {
+  width: 144px;
+  height: 144px;
+  flex: 0 0 144px;
+  overflow: visible;
+}
+
+.sylvia-floating-pal .sylvia-dotpal-mount dot-pal {
+  width: 140px;
+  height: 140px;
+  --dp-size: 140px;
+  --dp-glow-work: rgba(127, 219, 164, 0.9);
+  overflow: visible;
+}
+
+.sylvia-floating-pal.sylvia-mochi-listening .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 18px rgba(127, 219, 164, 0.42));
+}
+
+.sylvia-floating-pal.sylvia-mochi-working .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 17px rgba(127, 219, 164, 0.34));
+}
+
+.sylvia-floating-pal.sylvia-mochi-waiting .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.2));
+}
+
+.sylvia-hero-copy {
+  position: absolute;
+  top: calc(46% + 118px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.sylvia-hero-copy h1 {
+  color: #f5fbf6;
+  letter-spacing: -0.035em;
+}
+
+.sylvia-hero-copy p {
+  max-width: 420px;
+  color: rgba(184, 201, 189, 0.72);
+}
+
+.sylvia-chat-dock {
+  position: fixed;
+  z-index: 60;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(calc(100vw - 28px), 680px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.sylvia-chat-island {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid rgba(184, 223, 201, 0.21);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(7, 25, 14, 0.97), rgba(2, 8, 5, 0.97));
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.48), 0 0 36px rgba(10, 81, 39, 0.1), inset 0 1px 0 rgba(184, 223, 201, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.sylvia-chat-island:focus-within {
+  border-color: rgba(127, 219, 164, 0.46);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.48), 0 0 38px rgba(10, 81, 39, 0.17), inset 0 1px 0 rgba(184, 223, 201, 0.1);
+}
+
+.sylvia-chat-textarea {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 42px;
+  max-height: 108px;
+  margin: 0;
+  padding: 11px 7px;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f0f8f2;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.sylvia-chat-textarea::placeholder {
+  color: rgba(184, 201, 189, 0.55);
+}
+
+.sylvia-chat-action {
+  display: inline-flex;
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(184, 201, 189, 0.75);
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.sylvia-chat-action:hover {
+  border-color: rgba(184, 223, 201, 0.16);
+  background: rgba(184, 223, 201, 0.07);
+  color: #b8dfc9;
+}
+
+.sylvia-chat-action:active {
+  transform: scale(0.94);
+}
+
+.sylvia-chat-mic-active {
+  border-color: rgba(127, 219, 164, 0.25);
+  background: rgba(10, 81, 39, 0.34);
+  color: #9ee6b7;
+}
+
+.sylvia-chat-send {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(184, 223, 201, 0.12);
+  border-radius: 50%;
+  background: #0a5127;
+  color: #edfff2;
+  box-shadow: 0 4px 15px rgba(10, 81, 39, 0.25);
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.sylvia-chat-send:hover:not(:disabled) {
+  background: #126637;
+  transform: translateY(-1px);
+}
+
+.sylvia-chat-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.sylvia-chat-suggestions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.sylvia-chat-suggestion {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 7px 11px;
+  border: 1px solid rgba(184, 223, 201, 0.12);
+  border-radius: 999px;
+  background: rgba(2, 8, 5, 0.82);
+  color: rgba(184, 201, 189, 0.72);
+  font-size: 10px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.sylvia-chat-suggestion:hover {
+  border-color: rgba(127, 219, 164, 0.25);
+  background: rgba(10, 81, 39, 0.23);
+  color: #b8dfc9;
+}
+
+@keyframes sylvia-arrive-from-air {
+  0% {
+    opacity: 0;
+    transform: translateY(-43vh) scale(0.62) rotate(-7deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(20px) scale(1.08) rotate(3deg);
+  }
+  65% {
+    transform: translateY(-12px) scale(0.96) rotate(-1.5deg);
+  }
+  82% {
+    transform: translateY(5px) scale(1.015) rotate(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes sylvia-character-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@media (max-width: 520px) {
+  .sylvia-hero-center {
+    height: calc(100dvh - 68px);
+    min-height: 500px;
+  }
+
+  .sylvia-character-stage {
+    top: 43%;
+    height: 140px;
+  }
+
+  .sylvia-floating-pal {
+    width: 128px;
+    height: 128px;
+  }
+
+  .sylvia-floating-pal .sylvia-dotpal-mount {
+    width: 124px;
+    height: 124px;
+    flex-basis: 124px;
+  }
+
+  .sylvia-floating-pal .sylvia-dotpal-mount dot-pal {
+    width: 120px;
+    height: 120px;
+    --dp-size: 120px;
+  }
+
+  .sylvia-hero-copy {
+    top: calc(43% + 100px);
+  }
+
+  .sylvia-chat-dock {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: calc(100vw - 20px);
+    gap: 8px;
+  }
+
+  .sylvia-chat-island {
+    min-height: 62px;
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .sylvia-chat-action {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .sylvia-chat-action.sylvia-chat-new {
+    display: none;
+  }
+
+  .sylvia-chat-textarea {
+    padding: 9px 4px;
+    font-size: 12px;
+  }
+
+  .sylvia-chat-send {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .sylvia-chat-suggestions {
+    gap: 5px;
+  }
+
+  .sylvia-chat-suggestion {
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sylvia-character-entry,
+  .sylvia-floating-pal {
+    animation: none !important;
+  }
+}
