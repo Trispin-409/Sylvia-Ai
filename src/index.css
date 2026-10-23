@@ -739,3 +739,256 @@
     animation: none;
   }
 }
+
+
+/* Reference-led Sylvia home: central assistant island and deep green palette. */
+.sylvia-companion-root {
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(10, 81, 39, 0.18), transparent 47%),
+    radial-gradient(ellipse at 50% 100%, rgba(10, 81, 39, 0.09), transparent 42%),
+    #020704;
+}
+
+.sylvia-companion-glow-one {
+  background: rgba(10, 81, 39, 0.58);
+  opacity: 0.22;
+}
+
+.sylvia-companion-glow-two {
+  background: rgba(83, 145, 105, 0.28);
+  opacity: 0.18;
+}
+
+.sylvia-hero-center {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  flex: 0 0 auto;
+  padding: 0 0 22px;
+  align-items: center;
+  isolation: isolate;
+}
+
+.sylvia-hero-island-wrap {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: clamp(430px, 76vh, 700px);
+  flex: 0 0 auto;
+  place-items: center;
+  isolation: isolate;
+}
+
+.sylvia-hero-island-wrap::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: min(92vw, 550px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10, 81, 39, 0.4) 0%, rgba(10, 81, 39, 0.18) 32%, rgba(10, 81, 39, 0.055) 52%, transparent 72%);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.sylvia-reference-island {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: minmax(0, 1fr) 116px minmax(0, 1fr);
+  width: min(100%, 540px);
+  min-height: 138px;
+  padding: 8px 17px;
+  border-color: rgba(184, 223, 201, 0.2);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(7, 25, 14, 0.98), rgba(2, 8, 5, 0.98));
+  box-shadow: 0 24px 68px rgba(0, 0, 0, 0.55), 0 0 54px rgba(10, 81, 39, 0.14), inset 0 1px 0 rgba(184, 223, 201, 0.075);
+}
+
+.sylvia-reference-island::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(184, 223, 201, 0.11), transparent 66%);
+}
+
+.sylvia-reference-island-listening {
+  border-color: rgba(127, 219, 164, 0.48);
+  box-shadow: 0 24px 68px rgba(0, 0, 0, 0.55), 0 0 42px rgba(36, 171, 91, 0.17), inset 0 1px 0 rgba(184, 223, 201, 0.09);
+}
+
+.sylvia-reference-island-working {
+  border-color: rgba(127, 219, 164, 0.4);
+  box-shadow: 0 24px 68px rgba(0, 0, 0, 0.55), 0 0 42px rgba(36, 171, 91, 0.13), inset 0 1px 0 rgba(184, 223, 201, 0.09);
+}
+
+.sylvia-island-controls {
+  position: relative;
+  z-index: 2;
+  gap: 5px;
+}
+
+.sylvia-island-icon {
+  color: rgba(205, 205, 205, 0.78);
+}
+
+.sylvia-island-icon:hover {
+  border-color: rgba(184, 223, 201, 0.18);
+  background: rgba(184, 223, 201, 0.07);
+  color: #b8dfc9;
+}
+
+.sylvia-mochi-button {
+  z-index: 3;
+  width: 112px;
+  height: 112px;
+  overflow: visible;
+  border-radius: 50%;
+}
+
+.sylvia-mochi-button::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 4px;
+  border: 1px solid rgba(184, 223, 201, 0.2);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10, 81, 39, 0.56), rgba(10, 81, 39, 0.2) 58%, rgba(2, 7, 4, 0.14));
+  box-shadow: 0 0 28px rgba(10, 81, 39, 0.22), inset 0 1px 0 rgba(184, 223, 201, 0.09);
+}
+
+.sylvia-mochi-button:hover {
+  transform: translateY(-1px) scale(1.025);
+  filter: drop-shadow(0 0 15px rgba(127, 219, 164, 0.18));
+}
+
+.sylvia-dotpal-mount {
+  width: 102px;
+  height: 102px;
+  flex: 0 0 102px;
+}
+
+.sylvia-dotpal-mount dot-pal {
+  width: 98px;
+  height: 98px;
+  --dp-size: 98px;
+  --dp-glow-work: rgba(127, 219, 164, 0.9);
+}
+
+.sylvia-mochi-listening .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 14px rgba(127, 219, 164, 0.44));
+}
+
+.sylvia-mochi-working .sylvia-dotpal-mount dot-pal {
+  filter: drop-shadow(0 0 13px rgba(127, 219, 164, 0.34));
+}
+
+.sylvia-hero-copy {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 6px;
+}
+
+.sylvia-hero-copy h1 {
+  color: #f5fbf6;
+  letter-spacing: -0.035em;
+}
+
+.sylvia-hero-copy p {
+  max-width: 420px;
+  color: rgba(184, 201, 189, 0.72);
+}
+
+.sylvia-companion-panel {
+  border-color: rgba(184, 223, 201, 0.12);
+  background-color: rgba(4, 15, 8, 0.9);
+}
+
+.sylvia-pal-picker {
+  border-color: rgba(184, 223, 201, 0.13);
+  background: rgba(184, 223, 201, 0.025);
+}
+
+.sylvia-pal-create-toggle {
+  border-color: rgba(184, 223, 201, 0.2);
+  background: rgba(10, 81, 39, 0.18);
+  color: #b8dfc9;
+}
+
+.sylvia-pal-create-toggle:hover {
+  border-color: rgba(184, 223, 201, 0.38);
+  background: rgba(10, 81, 39, 0.3);
+}
+
+.sylvia-pal-creator {
+  border-color: rgba(184, 223, 201, 0.14);
+  background: rgba(3, 12, 6, 0.9);
+}
+
+.sylvia-companion-root .bg-indigo-500 {
+  background-color: #0a5127;
+}
+
+.sylvia-companion-root .bg-indigo-500:hover,
+.sylvia-companion-root .hover\:bg-indigo-400:hover {
+  background-color: #126637;
+}
+
+.sylvia-companion-root .text-indigo-100,
+.sylvia-companion-root .text-indigo-200 {
+  color: #b8dfc9;
+}
+
+.sylvia-companion-root .text-indigo-300 {
+  color: #8fcca6;
+}
+
+.sylvia-companion-root .border-indigo-400\/25,
+.sylvia-companion-root .border-indigo-300\/35:focus-within {
+  border-color: rgba(184, 223, 201, 0.24);
+}
+
+@media (max-width: 420px) {
+  .sylvia-hero-island-wrap {
+    height: clamp(390px, 76vh, 600px);
+  }
+
+  .sylvia-reference-island {
+    grid-template-columns: minmax(0, 1fr) 104px minmax(0, 1fr);
+    min-height: 122px;
+    padding: 6px 10px;
+  }
+
+  .sylvia-mochi-button {
+    width: 100px;
+    height: 100px;
+  }
+
+  .sylvia-dotpal-mount {
+    width: 92px;
+    height: 92px;
+    flex-basis: 92px;
+  }
+
+  .sylvia-dotpal-mount dot-pal {
+    width: 90px;
+    height: 90px;
+    --dp-size: 90px;
+  }
+
+  .sylvia-island-controls {
+    gap: 2px;
+  }
+
+  .sylvia-island-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sylvia-hero-island-wrap::before {
+    animation: none;
+  }
+}
