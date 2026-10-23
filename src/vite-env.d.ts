@@ -14,8 +14,8 @@ interface SylviaAndroidBridge {
   isCompanionOverlay(): boolean;
   toggleListening(): void;
   speakText(text: string): void;
-  openFullApp(view: string, prompt?: string): void;
-  minimizeToCompanion(): void;
+  expandCompanion(view: string, prompt?: string): void;
+  collapseCompanion(): void;
 }
 
 interface SylviaNativeVoiceState {
