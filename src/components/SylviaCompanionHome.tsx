@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowRight, ArrowUp, Brain, CalendarDays, CheckCircle2, ChevronRight,
-  Clock3, Expand, Home, LoaderCircle, Mail, MessageCircle, Mic, MicOff, Network, Plus, Sparkles, Target,
+  Clock3, Expand, LoaderCircle, Mail, MessageCircle, Mic, MicOff, Network, Plus, Sparkles, Target,
   Volume2, VolumeX, Wifi, WifiOff, XCircle,
 } from 'lucide-react';
 import { ApprovalRequest, BackendHealth, ChatItem, NavView, SylviaState } from '../types';
@@ -204,7 +204,7 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
             <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{status.detail}</p>
           </section>
 
-          {waitingApprovals.length > 0{waitingApprovals.length > 0 && (
+          {waitingApprovals.length > 0 && (
             <button type="button" onClick={() => onOpenWorkspace('chat')} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] p-3.5 text-left transition hover:bg-amber-400/[0.11]">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><Clock3 className="h-5 w-5" /></div>
               <div className="min-w-0 flex-1">
