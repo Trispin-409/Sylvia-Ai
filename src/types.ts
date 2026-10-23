@@ -9,6 +9,7 @@ export type SylviaState =
   | 'ERROR';
 
 export type NavView =
+  | 'career'
   | 'chat'
   | 'specialists'
   | 'missions'
