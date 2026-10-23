@@ -39,6 +39,7 @@ class SylviaApiService {
   public setBaseUrl(url: string): void { this.backendUrl = url.trim().replace(/\/+$/, '') || DEFAULT_LIVE_BACKEND; }
   public getContextId(): string | null { return this.currentContextId; }
   public setContextId(id: string | null): void { this.currentContextId = id; }
+  public resetConversation(): void { this.currentContextId = null; this.currentTaskId = null; }
   public isDemoMode(): boolean { return this.isDemoModeActive; }
   public setDemoMode(active: boolean): void { this.isDemoModeActive = active; }
 
