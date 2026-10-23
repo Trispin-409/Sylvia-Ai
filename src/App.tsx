@@ -39,6 +39,7 @@ export function App() {
     activeDelegationPath,
     activeSpecialistNode,
     sendMessage,
+    startNewConversation,
     approveAction,
     cancelAction,
     updateMissionStepStatus,
@@ -121,6 +122,7 @@ export function App() {
           sylviaState={sylviaState}
           health={health}
           onOpenDiagnostics={() => setShowDiagnostics(true)}
+          onNewConversation={startNewConversation}
           unreadGmailCount={gmailMessages.filter(m => m.unread).length}
           pendingApprovalCount={pendingApprovals.length}
         />
