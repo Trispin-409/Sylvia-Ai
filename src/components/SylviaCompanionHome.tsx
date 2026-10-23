@@ -249,53 +249,57 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
         </header>
 
         <main className="flex flex-1 flex-col">
-          <section className="flex flex-col items-center pb-5 pt-7 text-center sm:pt-9">
-            <div className={'sylvia-reference-island sylvia-reference-island-' + status.tone} aria-label="Sylvia companion island">
-              <div className="sylvia-island-controls sylvia-island-controls-left">
-                <button type="button" onClick={() => onOpenWorkspace('chat')} className="sylvia-island-icon" aria-label="Open Sylvia chat" title="Chat">
-                  <MessageCircle className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => setCommand('What should we work on?')} className="sylvia-island-icon" aria-label="Start a new request" title="New request">
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+          <section className="sylvia-hero-center flex flex-col items-center text-center">
+            <div className="sylvia-hero-island-wrap">
+              <div className={'sylvia-reference-island sylvia-reference-island-' + status.tone} aria-label="Sylvia companion island">
+                <div className="sylvia-island-controls sylvia-island-controls-left">
+                  <button type="button" onClick={() => onOpenWorkspace('chat')} className="sylvia-island-icon" aria-label="Open Sylvia chat" title="Chat">
+                    <MessageCircle className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => setCommand('What should we work on?')} className="sylvia-island-icon" aria-label="Start a new request" title="New request">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
 
-              <button
-                type="button"
-                className={'sylvia-mochi-button sylvia-mochi-' + status.tone}
-                onClick={onToggleListening}
-                aria-label={isListening ? 'Stop listening to Sylvia' : 'Speak to Sylvia'}
-                title={isListening ? 'Stop listening' : 'Tap to talk to Sylvia'}
-              >
-                <SylviaDotPal
-                  character={selectedCharacter}
-                  state={dotPalState}
-                  size={84}
-                  text={dotPalState === 'idle' ? undefined : status.headline}
-                  className="sylvia-dotpal-character"
-                />
-                {isListening && <span className="sylvia-mochi-listening-ring" aria-hidden="true" />}
-              </button>
+                <button
+                  type="button"
+                  className={'sylvia-mochi-button sylvia-mochi-' + status.tone}
+                  onClick={onToggleListening}
+                  aria-label={isListening ? 'Stop listening to Sylvia' : 'Speak to Sylvia'}
+                  title={isListening ? 'Stop listening' : 'Tap to talk to Sylvia'}
+                >
+                  <SylviaDotPal
+                    character={selectedCharacter}
+                    state={dotPalState}
+                    size={96}
+                    text={dotPalState === 'idle' ? undefined : status.headline}
+                    className="sylvia-dotpal-character"
+                  />
+                  {isListening && <span className="sylvia-mochi-listening-ring" aria-hidden="true" />}
+                </button>
 
-              <div className="sylvia-island-controls sylvia-island-controls-right">
-                <span className={'sylvia-island-status-dot ' + statusDot[status.tone]} title={status.label} aria-label={status.label} />
-                <button type="button" onClick={onToggleVoiceOutput} className="sylvia-island-icon" title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
-                  {voiceOutputEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                </button>
-                <button type="button" onClick={() => onOpenWorkspace(activeView)} className="sylvia-island-icon sylvia-island-expand" aria-label="Open full Sylvia workspace" title="Open full workspace">
-                  <Expand className="h-4 w-4" />
-                </button>
+                <div className="sylvia-island-controls sylvia-island-controls-right">
+                  <span className={'sylvia-island-status-dot ' + statusDot[status.tone]} title={status.label} aria-label={status.label} />
+                  <button type="button" onClick={onToggleVoiceOutput} className="sylvia-island-icon" title={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'} aria-label={voiceOutputEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}>
+                    {voiceOutputEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  </button>
+                  <button type="button" onClick={() => onOpenWorkspace(activeView)} className="sylvia-island-icon sylvia-island-expand" aria-label="Open full Sylvia workspace" title="Open full workspace">
+                    <Expand className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-[11px] font-medium tracking-wide text-slate-400">
-              <span className={'h-1.5 w-1.5 rounded-full ' + statusDot[status.tone]} />
-              <span>{status.label.toUpperCase()}</span>
-              <span className="h-3 w-px bg-white/10" />
-              <span>{health.connected ? 'SYLVIA ONLINE' : 'WAITING FOR CONNECTION'}</span>
+            <div className="sylvia-hero-copy">
+              <div className="mt-1 flex items-center justify-center gap-2 text-[11px] font-medium tracking-wide text-slate-400">
+                <span className={'h-1.5 w-1.5 rounded-full ' + statusDot[status.tone]} />
+                <span>{status.label.toUpperCase()}</span>
+                <span className="h-3 w-px bg-white/10" />
+                <span>{health.connected ? 'SYLVIA ONLINE' : 'WAITING FOR CONNECTION'}</span>
+              </div>
+              <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{status.headline}</h1>
+              <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{status.detail}</p>
             </div>
-            <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{status.headline}</h1>
-            <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{status.detail}</p>
           </section>
 
           <div className="sylvia-pal-tools">
