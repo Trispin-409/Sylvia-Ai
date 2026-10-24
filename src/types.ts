@@ -16,7 +16,8 @@ export type NavView =
   | 'workspace-gmail'
   | 'workspace-calendar'
   | 'activity'
-  | 'mission-control';
+  | 'mission-control'
+  | 'career';
 
 export interface A2APart {
   kind?: 'text' | 'data' | string;
