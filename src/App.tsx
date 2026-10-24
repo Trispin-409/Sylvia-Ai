@@ -254,13 +254,28 @@ export function App() {
           activeView={activeView}
           onSelectView={view => {
             setActiveView(view);
-            if (window.matchMedia('(max-width: 767px)').matches) setSidebarOpen(false);
+            if (window.matchMedia('(max-width: 767px)').matches) {
+              setSidebarOpen(false);
+              setRightPanelOpen(false);
+            }
           }}
           onClose={() => setSidebarOpen(false)}
           sylviaState={sylviaState}
           health={health}
-          onOpenDiagnostics={() => setShowDiagnostics(true)}
-          onNewConversation={startNewConversation}
+          onOpenDiagnostics={() => {
+            if (window.matchMedia('(max-width: 767px)').matches) {
+              setSidebarOpen(false);
+              setRightPanelOpen(false);
+            }
+            setShowDiagnostics(true);
+          }}
+          onNewConversation={() => {
+            startNewConversation();
+            if (window.matchMedia('(max-width: 767px)').matches) {
+              setSidebarOpen(false);
+              setRightPanelOpen(false);
+            }
+          }}
           unreadGmailCount={gmailMessages.filter(m => m.unread).length}
           pendingApprovalCount={pendingApprovals.length}
         />
