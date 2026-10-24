@@ -125,7 +125,7 @@ export interface Mission {
   title: string;
   objective: string;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNSPECIFIED';
   progress: number;
   steps: MissionStep[];
   nextAction: string;
@@ -147,7 +147,7 @@ export interface ContextMemory {
   key: string;
   summary: string;
   details?: string;
-  category: 'BUSINESS' | 'PREFERENCE' | 'DECISION' | 'TECHNICAL' | 'CONTACT';
+  category: 'BUSINESS' | 'PREFERENCE' | 'DECISION' | 'TECHNICAL' | 'CONTACT' | 'CAREER';
   confidence?: number;
   createdAt: string;
   updatedAt?: string;
