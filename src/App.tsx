@@ -19,7 +19,8 @@ import { SylviaCompanionHome } from './components/SylviaCompanionHome';
 import { MissionPanel } from './components/MissionPanel';
 import { SylviaDotPal, type SylviaPalAgentState } from './components/SylviaDotPal';
 import { NavView } from './types';
-import { Menu, Sparkles, Target, Dna, Minimize2, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { DotPal, cleanCustom, registerCustom } from 'dotpals';
+import { Menu, Dna, Minimize2, PanelRightOpen, PanelRightClose } from 'lucide-react';
 
 export function App() {
   const {
@@ -72,6 +73,7 @@ export function App() {
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches
   );
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
+  const [workspaceCharacter, setWorkspaceCharacter] = useState('blu');
   const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
   const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
   const isNativeCompanionOverlay = isNativeAndroid && Boolean(window.SylviaAndroid?.isCompanionOverlay());
@@ -161,6 +163,24 @@ export function App() {
     window.addEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
     return () => window.removeEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
   }, [sendMessage, setActiveView]);
+
+  useEffect(() => {
+    try {
+      const savedSelection = window.localStorage.getItem('sylvia.dotpals.selected-pal.v1');
+      if (savedSelection) setWorkspaceCharacter(savedSelection);
+
+      const rawCustom = window.localStorage.getItem('sylvia.dotpals.custom-pal.v1');
+      if (rawCustom) {
+        const customPal = cleanCustom(JSON.parse(rawCustom));
+        if (customPal) {
+          registerCustom(customPal, 'sylvia-custom-pal');
+          DotPal.refresh('sylvia-custom-pal');
+        }
+      }
+    } catch {
+      // A missing or invalid saved pal falls back to the built-in companion.
+    }
+  }, [workspaceExpanded]);
 
   const workspacePalState: SylviaPalAgentState =
     isListening || sylviaState === 'LISTENING'
@@ -272,10 +292,10 @@ export function App() {
 
           <div className="sylvia-workspace-center-brand">
             <SylviaDotPal
-              character="blu"
+              character={workspaceCharacter}
               state={workspacePalState}
               size={58}
-              text={workspacePalState === 'idle' ? undefined : sylviaState.replaceAll('_', ' ').toLowerCase()}
+              text={workspacePalState === 'idle' ? undefined : sylviaState.replace(/_/g, ' ').toLowerCase()}
               className="sylvia-workspace-pal"
             />
             <div className="hidden text-left sm:block">
@@ -285,16 +305,18 @@ export function App() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setRightPanelOpen(open => !open)}
-              className="sylvia-workspace-control"
-              aria-label={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
-              aria-expanded={rightPanelOpen}
-              title={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
-            >
-              {rightPanelOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
-            </button>
+            {activeView !== 'mission-control' && (
+              <button
+                type="button"
+                onClick={() => setRightPanelOpen(open => !open)}
+                className="sylvia-workspace-control"
+                aria-label={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
+                aria-expanded={rightPanelOpen}
+                title={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
+              >
+                {rightPanelOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
