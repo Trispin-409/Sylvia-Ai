@@ -33,6 +33,52 @@ export const generateUniqueId = (prefix: string): string => {
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' ? value as Record<string, unknown> : null;
 
+const stringList = (value: unknown): string[] => {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : [];
+  if (!Array.isArray(value)) return [];
+  return value.map(item => {
+    if (typeof item === 'string') return item.trim();
+    const record = asRecord(item);
+    return typeof record?.value === 'string' ? record.value.trim() : '';
+  }).filter(Boolean);
+};
+
+const preferencesFromValue = (value: unknown): Record<string, string> => {
+  const record = asRecord(value);
+  if (record) {
+    return Object.fromEntries(Object.entries(record).flatMap(([key, item]) => {
+      if (typeof item === 'string' && item.trim()) return [[key, item.trim()]];
+      const entry = asRecord(item);
+      if (typeof entry?.value === 'string' && entry.value.trim()) return [[key, entry.value.trim()]];
+      return [];
+    }));
+  }
+  return Object.fromEntries(stringList(value).map((item, index) => [`Preference ${index + 1}`, item]));
+};
+
+const decisionDnaFromToolExecutions = (tools: ToolExecution[]): DecisionDNA | null => {
+  for (const tool of [...tools].reverse()) {
+    if (tool.toolName !== 'MEMORY') continue;
+    const details = asRecord(tool.details);
+    if (!details) continue;
+    const nested = asRecord(details.decision_dna) || asRecord(details.decisionDNA);
+    const hasDnaFields = ['goals', 'priorities', 'constraints', 'preferences', 'working_style', 'workingStyle', 'decision_rules', 'decisionRules']
+      .some(key => key in details);
+    const data = nested || (hasDnaFields ? details : null);
+    if (!data) continue;
+    return {
+      goals: stringList(data.goals),
+      priorities: stringList(data.priorities),
+      constraints: stringList(data.constraints),
+      preferences: preferencesFromValue(data.preferences),
+      workingStyle: stringList(data.working_style ?? data.workingStyle),
+      decisionRules: stringList(data.decision_rules ?? data.decisionRules),
+      aversions: stringList(data.aversions),
+    };
+  }
+  return null;
+};
+
 const missionFromToolExecutions = (tools: ToolExecution[]): Mission | null => {
   for (const tool of [...tools].reverse()) {
     if (tool.toolName !== 'MISSION') continue;
@@ -93,7 +139,7 @@ const savedCareerMemoryFromTools = (tools: ToolExecution[]): ContextMemory | nul
   for (const tool of [...tools].reverse()) {
     if (tool.toolName !== 'MEMORY') continue;
     const details = asRecord(tool.details);
-    if (details?.saved !== true || details?.persistent !== true) continue;
+    if (!details || details.persistent !== true || !(details.saved === true || details.exists === true)) continue;
     const memory = asRecord(details.memory);
     if (!memory || String(memory.category || '').toLowerCase() !== 'career') continue;
     const key = String(memory.key || 'CAREER_PROFILE');
@@ -260,6 +306,10 @@ export function useSylvia() {
       if (returnedMission) {
         setActiveMission(returnedMission);
         addActivity('Action Planner', `Mission loaded from live ADK result: ${returnedMission.title}`, 'success', 'MISSION_RESULT');
+      }
+      const returnedDecisionDNA = decisionDnaFromToolExecutions(response.toolExecutions);
+      if (returnedDecisionDNA) {
+        setDecisionDNA(returnedDecisionDNA);
       }
       const savedCareerMemory = savedCareerMemoryFromTools(response.toolExecutions);
       if (savedCareerMemory) {
