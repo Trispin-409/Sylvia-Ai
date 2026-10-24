@@ -30,6 +30,88 @@ export const generateUniqueId = (prefix: string): string => {
   return `${prefix}_${Date.now()}_${idCounter}_${Math.random().toString(36).substring(2, 9)}`;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === 'object' ? value as Record<string, unknown> : null;
+
+const missionFromToolExecutions = (tools: ToolExecution[]): Mission | null => {
+  for (const tool of [...tools].reverse()) {
+    if (tool.toolName !== 'MISSION') continue;
+    const details = asRecord(tool.details);
+    const candidate = asRecord(details?.mission) || asRecord(asRecord(details?.result)?.mission);
+    if (!candidate || typeof candidate.title !== 'string' || typeof candidate.objective !== 'string') continue;
+
+    const rawSteps = Array.isArray(candidate.steps) ? candidate.steps : [];
+    const steps = rawSteps.map((value, index) => {
+      const step = asRecord(value) || {};
+      const statusText = String(step.status || 'pending').toLowerCase();
+      const status: MissionStepStatus =
+        statusText === 'completed' ? 'completed' :
+        statusText === 'in_progress' ? 'in_progress' :
+        statusText === 'blocked' ? 'blocked' : 'pending';
+      return {
+        id: String(step.id || `step_${index + 1}`),
+        number: String(step.number || String(index + 1).padStart(2, '0')),
+        title: String(step.title || step.name || `Step ${index + 1}`),
+        description: typeof step.description === 'string' ? step.description : undefined,
+        status,
+        specialist: typeof step.specialist === 'string' ? step.specialist : undefined,
+        actionRequired: Boolean(step.requires_approval ?? step.actionRequired),
+      };
+    });
+    const completed = steps.filter(step => step.status === 'completed').length;
+    const rawStatus = String(candidate.status || 'planning').toLowerCase();
+    const status: Mission['status'] =
+      rawStatus === 'completed' ? 'COMPLETED' :
+      rawStatus === 'in_progress' ? 'IN_PROGRESS' :
+      rawStatus === 'paused' || rawStatus === 'blocked' ? 'PAUSED' : 'NOT_STARTED';
+    const rawPriority = String(candidate.priority || 'unspecified').toLowerCase();
+    const priority: Mission['priority'] =
+      rawPriority === 'urgent' ? 'CRITICAL' :
+      rawPriority === 'high' ? 'HIGH' :
+      rawPriority === 'normal' ? 'MEDIUM' :
+      rawPriority === 'low' ? 'LOW' : 'UNSPECIFIED';
+    const nextStep = steps.find(step => step.status === 'pending' || step.status === 'in_progress');
+    const nextAction = String(candidate.next_action || candidate.nextAction || nextStep?.title || 'Review the mission steps.');
+
+    return {
+      id: String(candidate.id || candidate.mission_id || `mission_${Date.now()}`),
+      title: candidate.title,
+      objective: candidate.objective,
+      status,
+      priority,
+      progress: steps.length ? Math.round((completed / steps.length) * 100) : 0,
+      steps,
+      nextAction,
+      createdAt: String(candidate.created_at || candidate.createdAt || new Date().toISOString()),
+      updatedAt: String(candidate.updated_at || candidate.updatedAt || new Date().toISOString()),
+    };
+  }
+  return null;
+};
+
+const savedCareerMemoryFromTools = (tools: ToolExecution[]): ContextMemory | null => {
+  for (const tool of [...tools].reverse()) {
+    if (tool.toolName !== 'MEMORY') continue;
+    const details = asRecord(tool.details);
+    if (details?.saved !== true || details?.persistent !== true) continue;
+    const memory = asRecord(details.memory);
+    if (!memory || String(memory.category || '').toLowerCase() !== 'career') continue;
+    const key = String(memory.key || 'CAREER_PROFILE');
+    const createdAt = String(memory.created_at || memory.createdAt || new Date().toISOString());
+    return {
+      id: String(memory.id || key),
+      key,
+      summary: String(memory.value || ''),
+      details: typeof memory.reason === 'string' ? memory.reason : undefined,
+      category: 'CAREER',
+      confidence: Number(memory.confidence ?? 80) / 100,
+      createdAt,
+      updatedAt: String(memory.updated_at || memory.updatedAt || createdAt),
+    };
+  }
+  return null;
+};
+
 export function useSylvia() {
   const [sylviaState, setSylviaState] = useState<SylviaState>('IDLE');
   const [activeView, setActiveView] = useState<NavView>('chat');
@@ -173,6 +255,17 @@ export function useSylvia() {
 
     try {
       const response = await sylviaApi.sendA2AMessage(normalized);
+
+      const returnedMission = missionFromToolExecutions(response.toolExecutions);
+      if (returnedMission) {
+        setActiveMission(returnedMission);
+        addActivity('Action Planner', `Mission loaded from live ADK result: ${returnedMission.title}`, 'success', 'MISSION_RESULT');
+      }
+      const savedCareerMemory = savedCareerMemoryFromTools(response.toolExecutions);
+      if (savedCareerMemory) {
+        setContextMemories(prev => [savedCareerMemory, ...prev.filter(item => item.id !== savedCareerMemory.id && item.key !== savedCareerMemory.key)]);
+      }
+
       setDelegationPath([]);
       setActiveSpecialistNode(null);
 
