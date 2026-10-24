@@ -104,7 +104,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
               Strategic Goals
             </div>
             <ul className="space-y-1.5 text-slate-300 font-sans">
-              {decisionDNA.goals.map((goal, idx) => (
+              {decisionDNA.goals.length === 0 ? <li className="text-slate-500">No goals are loaded into this view yet. Ask Sylvia to retrieve your saved Decision DNA.</li> : decisionDNA.goals.map((goal, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-indigo-400 font-mono-code">›</span>
                   <span>{goal}</span>
@@ -120,7 +120,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
               Autonomy Constraints
             </div>
             <ul className="space-y-1.5 text-slate-300 font-sans">
-              {decisionDNA.constraints.map((constraint, idx) => (
+              {decisionDNA.constraints.length === 0 ? <li className="text-slate-500">No constraints are loaded into this view yet.</li> : decisionDNA.constraints.map((constraint, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-amber-400 font-mono-code">!</span>
                   <span>{constraint}</span>
@@ -136,7 +136,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
               Working Style Preferences
             </div>
             <ul className="space-y-1.5 text-slate-300 font-sans">
-              {decisionDNA.workingStyle.map((style, idx) => (
+              {decisionDNA.workingStyle.length === 0 ? <li className="text-slate-500">No working-style preferences are loaded into this view yet.</li> : decisionDNA.workingStyle.map((style, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-cyan-400 font-mono-code">•</span>
                   <span>{style}</span>
@@ -161,7 +161,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
             </div>
 
             <div className="space-y-1.5 font-mono-code text-[11px] text-slate-300">
-              {decisionDNA.decisionRules.map((rule, idx) => (
+              {decisionDNA.decisionRules.length === 0 ? <div className="rounded bg-slate-900/60 border border-slate-800/60 p-2 text-slate-500">No decision rules are loaded yet. Ask Sylvia to retrieve or save a preference through the live backend.</div> : decisionDNA.decisionRules.map((rule, idx) => (
                 <div key={idx} className="p-2 rounded bg-slate-900/80 border border-slate-800/60">
                   {rule}
                 </div>
@@ -253,6 +253,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
                   <option value="CONTACT">CONTACT</option>
                   <option value="DECISION">DECISION</option>
                   <option value="PREFERENCE">PREFERENCE</option>
+                  <option value="CAREER">CAREER</option>
                 </select>
 
                 <div className="flex gap-1.5">
@@ -277,7 +278,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
           <div className="space-y-2">
             {filteredMemories.length === 0 ? (
               <div className="p-6 text-center text-slate-400 font-mono-code text-xs">
-                No persistent memory found.
+                No memories have been loaded into this view yet. Ask Sylvia to retrieve a saved memory or use Career Bridge with consent to save a career profile.
               </div>
             ) : (
               filteredMemories.map(mem => {
