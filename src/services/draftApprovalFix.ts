@@ -1,5 +1,6 @@
 import { ApprovalRequest, ApprovalResult, GmailDraftResult, ToolExecution } from '../types';
 import { sylviaApi } from './sylviaApi';
+import { findLastMatchingResponse, unwrapResponse } from './approvalResultParser';
 
 type AnyRecord = Record<string, unknown>;
 type FunctionEvent = {
@@ -48,44 +49,6 @@ function extractFunctionEvents(result: AnyRecord): FunctionEvent[] {
   }
 
   return events;
-}
-
-function unwrapResponse(data: AnyRecord | undefined): AnyRecord | undefined {
-  if (!data) return undefined;
-  const response = asRecord(data.response);
-  if (response) return response;
-  const result = asRecord(data.result);
-  if (result) return result;
-  const nestedData = asRecord(data.data);
-  if (nestedData) return nestedData;
-  return data;
-}
-
-function findLastMatchingResponse(events: FunctionEvent[], approval: ApprovalRequest): AnyRecord | undefined {
-  const targetId = approval.originalFunctionCallId;
-  const isDraftResponse = (event: FunctionEvent) =>
-    event.kind === 'response' &&
-    (event.name || '').toLowerCase() === 'gmail_create_draft_reply_with_approval';
-
-  if (targetId) {
-    for (let index = events.length - 1; index >= 0; index -= 1) {
-      const event = events[index];
-      if (event.id === targetId && isDraftResponse(event)) {
-        return unwrapResponse(event.data);
-      }
-    }
-  }
-
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (!isDraftResponse(event)) continue;
-    const response = unwrapResponse(event.data);
-    if (response && ('draft_id' in response || 'draftId' in response || 'draft_created' in response || 'draftCreated' in response)) {
-      return response;
-    }
-  }
-
-  return undefined;
 }
 
 function collectToolExecutions(events: FunctionEvent[]): ToolExecution[] {
