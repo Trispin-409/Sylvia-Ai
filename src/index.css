@@ -1790,7 +1790,7 @@
 .sylvia-workspace-chat-character-entry {
   display: grid;
   place-items: center;
-  animation: sylvia-workspace-arrive 950ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation: sylvia-arrive-from-air 1.45s cubic-bezier(0.2, 0.8, 0.25, 1) both;
 }
 
 .sylvia-workspace-chat-pal {
