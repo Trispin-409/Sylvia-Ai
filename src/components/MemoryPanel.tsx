@@ -129,6 +129,24 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({
             </ul>
           </div>
 
+          {/* Aversions */}
+          {(decisionDNA.aversions?.length || 0) > 0 && (
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono-code text-rose-300 font-bold uppercase mb-2">
+                <Shield className="w-3.5 h-3.5" />
+                Saved Aversions
+              </div>
+              <ul className="space-y-1.5 text-slate-300 font-sans">
+                {decisionDNA.aversions?.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-rose-300 font-mono-code">!</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Working Style & Preferences */}
           <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[10px] font-mono-code text-cyan-400 font-bold uppercase mb-2">
