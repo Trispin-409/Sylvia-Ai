@@ -137,6 +137,7 @@ export interface DecisionDNA {
   goals: string[];
   priorities: string[];
   constraints: string[];
+  aversions?: string[];
   preferences: Record<string, string>;
   workingStyle: string[];
   decisionRules: string[];
