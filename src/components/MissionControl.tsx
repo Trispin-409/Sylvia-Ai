@@ -53,7 +53,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                 MISSION CONTROL PROTOCOL
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-indigo-950 text-indigo-300 border border-indigo-500/30">
-                ACTIVE PHASE
+                {mission.id === 'no-active-mission' ? 'NO ACTIVE MISSION' : 'ACTIVE PHASE'}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-100 mt-0.5">
@@ -158,7 +158,13 @@ export const MissionControl: React.FC<MissionControlProps> = ({
           </div>
 
           <div className="space-y-3">
-            {mission.steps.map(step => {
+            {mission.steps.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6 text-sm leading-6 text-slate-400">
+                {mission.id === 'no-active-mission'
+                  ? 'There is no verified mission loaded in this view yet. Create one in Career Bridge or ask Sylvia to retrieve your current mission from persistent storage.'
+                  : 'This mission has no steps yet. Ask Sylvia to add practical actions before tracking progress.'}
+              </div>
+            ) : mission.steps.map(step => {
               const isCompleted = step.status === 'completed';
               const isInProgress = step.status === 'in_progress';
               const isBlocked = step.status === 'blocked';
