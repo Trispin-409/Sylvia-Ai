@@ -295,14 +295,16 @@ export function App() {
           </div>
 
           <div className="sylvia-workspace-center-brand">
-            <SylviaDotPal
-              character={workspaceCharacter}
-              state={workspacePalState}
-              size={58}
-              text={workspacePalState === 'idle' ? undefined : sylviaState.replace(/_/g, ' ').toLowerCase()}
-              className="sylvia-workspace-pal"
-            />
-            <div className="hidden text-left sm:block">
+            {activeView !== 'chat' && (
+              <SylviaDotPal
+                character={workspaceCharacter}
+                state={workspacePalState}
+                size={58}
+                text={workspacePalState === 'idle' ? undefined : sylviaState.replace(/_/g, ' ').toLowerCase()}
+                className="sylvia-workspace-pal"
+              />
+            )}
+            <div className={activeView === 'chat' ? 'text-center' : 'hidden text-left sm:block'}>
               <div className="font-display text-sm font-bold tracking-[0.18em] text-slate-100">SYLVIA</div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-emerald-200/65">Your AI companion</div>
             </div>
@@ -342,7 +344,52 @@ export function App() {
 
         <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
           {activeView === 'chat' && (
-            <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+              <div className="sylvia-workspace-chat-stage">
+                <div className="sylvia-workspace-chat-character-entry">
+                  <button
+                    type="button"
+                    className="sylvia-workspace-chat-pal"
+                    onClick={handleToggleListening}
+                    aria-label={isListening ? 'Stop listening to Sylvia' : 'Speak to Sylvia'}
+                    title={isListening ? 'Stop listening' : 'Tap to talk to Sylvia'}
+                  >
+                    <SylviaDotPal
+                      character={workspaceCharacter}
+                      state={workspacePalState}
+                      size={96}
+                      text={workspacePalState === 'idle' ? undefined : sylviaState.replace(/_/g, ' ').toLowerCase()}
+                      className="sylvia-workspace-chat-dotpal"
+                    />
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/70">
+                  <span className={'h-1.5 w-1.5 rounded-full ' + (
+                    isListening || sylviaState === 'LISTENING'
+                      ? 'bg-emerald-300 animate-pulse'
+                      : ['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)
+                      ? 'bg-emerald-300 animate-pulse'
+                      : sylviaState === 'WAITING_FOR_APPROVAL'
+                      ? 'bg-amber-300 animate-pulse'
+                      : sylviaState === 'ERROR'
+                      ? 'bg-rose-400'
+                      : 'bg-emerald-400'
+                  )} />
+                  {isListening || sylviaState === 'LISTENING'
+                    ? 'Listening to you'
+                    : sylviaState === 'THINKING' || sylviaState === 'ANALYZING'
+                    ? 'Thinking through your request'
+                    : sylviaState === 'WORKING'
+                    ? 'Working on it'
+                    : sylviaState === 'WAITING_FOR_APPROVAL'
+                    ? 'Waiting for your approval'
+                    : sylviaState === 'COMPLETED'
+                    ? 'Task completed'
+                    : sylviaState === 'ERROR'
+                    ? 'Needs attention'
+                    : health.connected ? 'Sylvia is online' : 'Sylvia is ready'}
+                </div>
+              </div>
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 <ChatPanel messages={chatMessages} onApproveAction={approveAction} onCancelAction={cancelAction} />
               </div>
@@ -422,7 +469,7 @@ export function App() {
       </div>
 
       {activeView !== 'mission-control' && (
-        <div className={`sylvia-workspace-right-drawer fixed inset-y-0 right-0 z-50 w-[min(88vw,24rem)] shrink-0 transform transition-transform duration-300 ease-in-out lg:relative lg:inset-auto ${rightPanelOpen ? 'flex translate-x-0 lg:w-80 xl:w-96' : 'hidden translate-x-full lg:hidden'}`}>
+        <div className={`sylvia-workspace-right-drawer fixed inset-y-0 right-0 z-50 flex w-[min(88vw,24rem)] shrink-0 transform transition-[transform,width,opacity] duration-300 ease-in-out lg:relative lg:inset-auto ${rightPanelOpen ? 'translate-x-0 opacity-100 pointer-events-auto lg:w-80 xl:w-96' : 'translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:w-0'}`}>
           <RightPanel
             mission={mission}
             decisionDNA={decisionDNA}
