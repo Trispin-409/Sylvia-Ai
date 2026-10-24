@@ -14,6 +14,7 @@ interface RightPanelProps {
   onAddDecisionRule: (rule: string) => void;
   onAddContextMemory: (key: string, summary: string, details: string, category: ContextMemory['category']) => void;
   onOpenFullMissionControl: () => void;
+  onClose?: () => void;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -25,17 +26,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onAddDecisionRule,
   onAddContextMemory,
   onOpenFullMissionControl,
+  onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<'mission' | 'memory' | 'activity'>('mission');
 
   return (
     <div
       id="sylvia-right-intelligence-panel"
-      className="w-80 lg:w-96 h-full glass-panel border-l border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col z-20 select-none"
+      className="w-full min-w-0 lg:w-96 h-full glass-panel border-l border-emerald-900/50 bg-[#020b06]/90 backdrop-blur-xl flex flex-col z-20 select-none"
     >
       {/* Tab Switcher Header */}
-      <div className="p-3 border-b border-slate-800/80 flex items-center justify-between">
-        <div className="flex items-center gap-1 w-full bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+      <div className="p-3 border-b border-slate-800/80 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
           <button
             id="tab-mission"
             onClick={() => setActiveTab('mission')}
@@ -75,6 +77,15 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             <span>Activity</span>
           </button>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-300 transition hover:border-emerald-300/25 hover:bg-emerald-950/40 hover:text-emerald-100"
+          aria-label="Close intelligence panel"
+          title="Close panel"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Tab Content Body */}
