@@ -15,6 +15,7 @@ import {
   BackendHealth,
   AgentCard,
   WorkspaceHealth,
+  ToolExecution,
 } from '../types';
 import { sylviaApi } from '../services/sylviaApi';
 import {
