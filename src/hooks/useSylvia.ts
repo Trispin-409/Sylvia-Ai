@@ -209,6 +209,7 @@ export function useSylvia() {
         approvalRequest: pendingApproval,
       });
       onSpeechResponse?.(response.reply);
+      return { reply: response.reply, toolExecutions: response.toolExecutions };
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       setSylviaState('ERROR');
@@ -217,6 +218,7 @@ export function useSylvia() {
       addActivity('System Alert', errorMsg, 'error');
       appendChatMessage({ id: generateUniqueId('err'), sender: 'sylvia', text: `**ADK Communication Error**\n\n${errorMsg}`, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       window.setTimeout(() => setSylviaState('IDLE'), 4000);
+      return null;
     }
   }, [addActivity, appendChatMessage, applyBackendWorkspaceHealth, setActiveView]);
 
