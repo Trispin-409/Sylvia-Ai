@@ -190,6 +190,7 @@ export function useSylvia() {
   const [activeSpecialistNode, setActiveSpecialistNode] = useState<string | null>(null);
   const handledApprovalsRef = useRef<Set<string>>(new Set());
   const processingApprovalsRef = useRef<Set<string>>(new Set());
+  const processingMissionStepsRef = useRef<Set<string>>(new Set());
   const stateResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addActivity = useCallback((agent: string, action: string, status: ActivityEvent['status'], tool?: string, details?: string) => {
@@ -456,14 +457,70 @@ export function useSylvia() {
     }
   }, [addActivity, appendChatMessage, approvalQueue]);
 
-  const updateMissionStep = useCallback((stepId: string, status: MissionStepStatus) => {
-    setActiveMission(prev => {
-      const updatedSteps = prev.steps.map(step => step.id === stepId ? { ...step, status } : step);
-      const completedCount = updatedSteps.filter(step => step.status === 'completed').length;
-      return { ...prev, steps: updatedSteps, progress: updatedSteps.length ? Math.round((completedCount / updatedSteps.length) * 100) : 0, updatedAt: new Date().toISOString() };
-    });
-    addActivity('Action Planner', `Step updated: ${stepId} → ${status.toUpperCase()}`, 'info', 'MISSION_STEP_UPDATE');
-  }, [addActivity]);
+  const updateMissionStep = useCallback(async (stepId: string, status: MissionStepStatus) => {
+    if (processingMissionStepsRef.current.has(stepId)) return;
+
+    const selectedStep = activeMission.steps.find(step => step.id === stepId);
+    if (!selectedStep || activeMission.id === 'no-active-mission') {
+      addActivity('Action Planner', 'Mission step was not changed because no verified backend mission step is loaded.', 'error', 'MISSION_STEP_UPDATE');
+      return;
+    }
+    if (selectedStep.status === status) return;
+
+    processingMissionStepsRef.current.add(stepId);
+    setSylviaState('WORKING');
+    addActivity('Action Planner', `Requesting persistent mission update: ${selectedStep.title} → ${status}`, 'working', 'MISSION_STEP_UPDATE');
+
+    try {
+      const request = [
+        'MISSION CONTROL STEP UPDATE — explicit user action.',
+        'Use Sylvia’s existing Google ADK backend tools. The user explicitly selected this status in Mission Control; apply exactly this one step update and no other change.',
+        `Current mission ID: ${activeMission.id}`,
+        `Current mission title: ${activeMission.title}`,
+        `Exact step ID: ${stepId}`,
+        `Current step status shown to user: ${selectedStep.status}`,
+        `Requested status: ${status}`,
+        'Call the actual update_mission_step tool with the exact step_id and requested status. Do not create a new mission. Do not mark any other steps complete. Return the real structured result including whether the update was persisted.',
+        'Only report success if the tool result confirms updated=true and persistent=true.',
+      ].join('\n');
+
+      const response = await sylviaApi.sendA2AMessage(request);
+      const updateTool = [...response.toolExecutions].reverse().find(tool =>
+        tool.toolName === 'MISSION' && tool.action.toLowerCase().includes('update mission step')
+      );
+      const details = asRecord(updateTool?.details);
+      if (!updateTool || updateTool.status !== 'completed' || details?.updated !== true || details?.persistent !== true) {
+        const reason = String(details?.reason || details?.persistence_error || updateTool?.result || response.reply || 'No confirmed persistent result was returned.');
+        throw new Error(`The backend did not confirm a persistent step update. ${reason}`);
+      }
+
+      const updatedMission = missionFromToolExecutions(response.toolExecutions);
+      if (!updatedMission) {
+        throw new Error('The backend reported a persistent update but did not return a parseable updated mission. Refresh the mission from Sylvia before relying on the displayed state.');
+      }
+
+      setActiveMission(updatedMission);
+      addActivity('Action Planner', `Persistent mission step updated: ${selectedStep.title} → ${status}`, 'success', 'MISSION_STEP_PERSISTED', `Mission: ${updatedMission.title}; step ID: ${stepId}`);
+      appendChatMessage({
+        id: generateUniqueId('mission_update'),
+        sender: 'sylvia',
+        text: `Mission step updated in the backend: “${selectedStep.title}” is now ${status.replace(/_/g, ' ')}. Sylvia received a structured result confirming the mission was persisted.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      addActivity('Action Planner', 'Mission step update not confirmed as persistent', 'error', 'MISSION_STEP_UPDATE_FAILED', message);
+      appendChatMessage({
+        id: generateUniqueId('mission_update_error'),
+        sender: 'sylvia',
+        text: `Mission step was not updated in the workspace because persistent execution could not be confirmed.\n\n${message}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    } finally {
+      processingMissionStepsRef.current.delete(stepId);
+      setSylviaState('IDLE');
+    }
+  }, [activeMission, addActivity, appendChatMessage]);
 
   const addDecisionRule = useCallback((rule: string) => {
     if (!rule.trim()) return;
