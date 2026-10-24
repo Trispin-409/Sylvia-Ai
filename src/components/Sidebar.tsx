@@ -2,6 +2,7 @@ import React from 'react';
 import {
   MessageSquare,
   Sparkles,
+  X,
   Target,
   History,
   Dna,
@@ -20,10 +21,12 @@ import {
   ShieldCheck,
   Flame,
 } from 'lucide-react';
-import { NavView, BackendHealth } from '../types';
+import { NavView, BackendHealth, SylviaState } from '../types';
 
 interface SidebarProps {
   activeView: NavView;
+  sylviaState?: SylviaState;
+  onClose?: () => void;
   setActiveView?: (view: NavView) => void;
   onSelectView?: (view: NavView) => void;
   health: BackendHealth;
@@ -44,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingApprovalCount,
   unreadGmailCount = 0,
   onNewConversation,
+  onClose,
 }) => {
   const changeView = setActiveView ?? onSelectView ?? (() => undefined);
   const pendingCount = pendingApprovalsCount ?? pendingApprovalCount ?? 0;
@@ -59,18 +63,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       className="w-64 h-full flex flex-col glass-panel border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl z-20 select-none"
     >
       {/* Top Header & New Conversation */}
-      <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-indigo-400/30">
-            <Sparkles className="w-4 h-4 text-white" />
+      <div className="p-4 border-b border-slate-800/60 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-tr from-emerald-900 to-green-700 flex items-center justify-center shadow-lg shadow-emerald-950/30 border border-emerald-300/20">
+            <Sparkles className="w-4 h-4 text-emerald-100" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="font-display font-bold text-sm tracking-wider text-slate-100 flex items-center gap-1.5">
-              SYLVIA <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30">A2A</span>
+              SYLVIA <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded-full bg-emerald-950/60 text-emerald-200 border border-emerald-500/25">A2A</span>
             </div>
-            <div className="text-[11px] text-slate-400 font-sans">Autonomous Operator</div>
+            <div className="text-[11px] text-slate-400 font-sans">Your AI companion</div>
           </div>
         </div>
+        <button type="button" onClick={onClose} className="md:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10" aria-label="Close navigation sidebar" title="Close sidebar">
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Primary Action Button */}
