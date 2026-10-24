@@ -12,6 +12,7 @@ import {
   Activity,
   Sliders,
   Sparkles,
+  BriefcaseBusiness,
 } from 'lucide-react';
 import { NavView } from '../types';
 
@@ -37,6 +38,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       subtitle: 'Talk to Sylvia & execute goals',
       icon: <MessageSquare className="w-4 h-4 text-indigo-400" />,
       action: () => onSelectAction('chat'),
+    },
+    {
+      id: 'career-bridge',
+      title: 'Career Bridge',
+      subtitle: 'Translate real experience into skills, pathways and a work-readiness plan',
+      icon: <BriefcaseBusiness className="w-4 h-4 text-emerald-300" />,
+      action: () => onSelectAction('career'),
     },
     {
       id: 'start-mission',
