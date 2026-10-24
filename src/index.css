@@ -1951,3 +1951,20 @@
     animation: none !important;
   }
 }
+
+
+@media (max-width: 767px) {
+  .sylvia-workspace-center-brand > div {
+    min-width: 0;
+  }
+
+  .sylvia-workspace-center-brand > div > div:first-child {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .sylvia-workspace-center-brand > div > div:last-child {
+    display: none;
+  }
+}
