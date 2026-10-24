@@ -453,7 +453,7 @@ export function App() {
             <CareerBridgePanel
               backendConnected={health.connected}
               isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
-              onAnalyze={prompt => sendMessage(prompt)}
+              onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
               onOpenConversation={() => setActiveView('chat')}
               onOpenMissionControl={() => {
                 setRightPanelOpen(false);
