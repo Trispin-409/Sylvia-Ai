@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useSylvia } from './hooks/useSylvia';
 import { useVoice } from './hooks/useVoice';
 import { StarField } from './components/StarField';
-import { SylviaPresence } from './components/SylviaPresence';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
 import { ChatPanel } from './components/ChatPanel';
@@ -17,8 +16,10 @@ import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SylviaCompanionHome } from './components/SylviaCompanionHome';
+import { MissionPanel } from './components/MissionPanel';
+import { SylviaDotPal, type SylviaPalAgentState } from './components/SylviaDotPal';
 import { NavView } from './types';
-import { Menu, Sparkles, Target, Dna, Minimize2 } from 'lucide-react';
+import { Menu, Sparkles, Target, Dna, Minimize2, PanelRightOpen, PanelRightClose } from 'lucide-react';
 
 export function App() {
   const {
@@ -64,8 +65,12 @@ export function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
+  const [rightPanelOpen, setRightPanelOpen] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches
+  );
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
   const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
   const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
@@ -157,6 +162,21 @@ export function App() {
     return () => window.removeEventListener('sylvia:native-expand-workspace', handleNativeOpenWorkspace);
   }, [sendMessage, setActiveView]);
 
+  const workspacePalState: SylviaPalAgentState =
+    isListening || sylviaState === 'LISTENING'
+      ? 'listening'
+      : sylviaState === 'THINKING' || sylviaState === 'ANALYZING'
+      ? 'thinking'
+      : sylviaState === 'WORKING'
+      ? 'working'
+      : sylviaState === 'WAITING_FOR_APPROVAL'
+      ? 'waiting'
+      : sylviaState === 'COMPLETED'
+      ? 'done'
+      : sylviaState === 'ERROR'
+      ? 'error'
+      : 'idle';
+
   if (!workspaceExpanded) {
     return (
       <SylviaCompanionHome
@@ -194,29 +214,25 @@ export function App() {
   }
 
   return (
-    <div className="relative w-screen h-screen bg-[#030712] text-slate-100 flex overflow-hidden font-sans select-none">
+    <div className="sylvia-workspace-shell relative flex h-[100dvh] w-screen overflow-hidden font-sans text-slate-100 select-none">
       <StarField sylviaState={sylviaState} />
-      <button
-        type="button"
-        onClick={() => {
-          if (isNativeAndroid) {
-            window.SylviaAndroid?.collapseCompanion();
-            return;
-          }
-          setWorkspaceExpanded(false);
-        }}
-        className="fixed bottom-5 right-5 z-[100] inline-flex items-center gap-2 rounded-full border border-indigo-300/20 bg-slate-950/95 px-3.5 py-2.5 text-xs font-medium text-slate-200 shadow-2xl shadow-black/50 backdrop-blur-xl transition hover:border-indigo-300/40 hover:bg-indigo-950/90"
-        aria-label="Minimize to Sylvia companion"
-        title="Return to Sylvia companion"
-      >
-        <Minimize2 className="h-3.5 w-3.5 text-indigo-200" />
-        <span>Companion</span>
-      </button>
+      {sidebarOpen && (
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm md:hidden"
+          aria-label="Close sidebar overlay"
+        />
+      )}
 
-      <div className={`fixed inset-y-0 left-0 z-40 md:static transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <div className={`sylvia-workspace-sidebar fixed inset-y-0 left-0 z-50 w-64 shrink-0 transform transition-all duration-300 ease-in-out md:relative md:inset-auto ${sidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden'}`}>
         <Sidebar
           activeView={activeView}
-          onSelectView={view => { setActiveView(view); setMobileMenuOpen(false); }}
+          onSelectView={view => {
+            setActiveView(view);
+            if (window.matchMedia('(max-width: 767px)').matches) setSidebarOpen(false);
+          }}
+          onClose={() => setSidebarOpen(false)}
           sylviaState={sylviaState}
           health={health}
           onOpenDiagnostics={() => setShowDiagnostics(true)}
@@ -226,25 +242,81 @@ export function App() {
         />
       </div>
 
-      <div className="flex-1 flex flex-col h-full min-w-0 relative z-10">
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md z-30">
-          <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2 font-display font-bold tracking-widest text-slate-100">
-            <Sparkles className="w-4 h-4 text-indigo-400" /><span>SYLVIA</span>
+      {rightPanelOpen && (
+        <button
+          type="button"
+          onClick={() => setRightPanelOpen(false)}
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          aria-label="Close intelligence panel overlay"
+        />
+      )}
+
+      <div className="sylvia-workspace-main relative z-10 flex h-full min-w-0 flex-1 flex-col">
+        <header className="sylvia-workspace-topbar relative z-30 flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(open => !open)}
+              className="sylvia-workspace-control"
+              aria-label={sidebarOpen ? 'Close navigation sidebar' : 'Open navigation sidebar'}
+              aria-expanded={sidebarOpen}
+              title={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="hidden min-w-0 sm:block">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200/70">Sylvia</div>
+              <div className="text-xs text-slate-400">AI workspace</div>
+            </div>
           </div>
-          <button onClick={() => setRightPanelOpen(prev => !prev)} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-            <Target className="w-5 h-5 text-indigo-400" />
-          </button>
-        </div>
+
+          <div className="sylvia-workspace-center-brand">
+            <SylviaDotPal
+              character="blu"
+              state={workspacePalState}
+              size={58}
+              text={workspacePalState === 'idle' ? undefined : sylviaState.replaceAll('_', ' ').toLowerCase()}
+              className="sylvia-workspace-pal"
+            />
+            <div className="hidden text-left sm:block">
+              <div className="font-display text-sm font-bold tracking-[0.18em] text-slate-100">SYLVIA</div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-emerald-200/65">Your AI companion</div>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRightPanelOpen(open => !open)}
+              className="sylvia-workspace-control"
+              aria-label={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
+              aria-expanded={rightPanelOpen}
+              title={rightPanelOpen ? 'Close intelligence panel' : 'Open intelligence panel'}
+            >
+              {rightPanelOpen ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (isNativeAndroid) {
+                  window.SylviaAndroid?.collapseCompanion();
+                  return;
+                }
+                setWorkspaceExpanded(false);
+              }}
+              className="sylvia-workspace-control sylvia-workspace-return"
+              aria-label="Minimize to Sylvia companion"
+              title="Return to Sylvia companion"
+            >
+              <Minimize2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Companion</span>
+            </button>
+          </div>
+        </header>
 
         <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
           {activeView === 'chat' && (
             <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
-              <div className="flex-shrink-0">
-                <SylviaPresence sylviaState={sylviaState} health={health} isListening={isListening} audioLevel={audioLevel} />
-              </div>
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 <ChatPanel messages={chatMessages} onApproveAction={approveAction} onCancelAction={cancelAction} />
               </div>
@@ -269,6 +341,23 @@ export function App() {
 
           {activeView === 'mission-control' && (
             <MissionControl mission={mission} onClose={() => setActiveView('chat')} onUpdateStepStatus={updateMissionStepStatus} />
+          )}
+
+          {activeView === 'missions' && (
+            <div className="sylvia-workspace-feature-scroll h-full min-h-0 w-full overflow-y-auto p-4 sm:p-6">
+              <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-emerald-900/40 bg-[#041009]/75 shadow-2xl shadow-black/20">
+                <div className="border-b border-emerald-900/40 px-4 py-3 sm:px-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-200/70">Missions</div>
+                  <h2 className="mt-1 font-display text-lg font-semibold text-slate-100">Mission Ledger</h2>
+                  <p className="mt-1 text-xs text-slate-400">Review the current mission, update steps, or open the full mission roadmap.</p>
+                </div>
+                <MissionPanel
+                  mission={mission}
+                  onUpdateStepStatus={updateMissionStepStatus}
+                  onOpenFullMissionControl={() => setActiveView('mission-control')}
+                />
+              </div>
+            </div>
           )}
 
           {activeView === 'workspace-gmail' && (
@@ -307,7 +396,7 @@ export function App() {
       </div>
 
       {activeView !== 'mission-control' && (
-        <div className={`fixed inset-y-0 right-0 z-30 md:static transform transition-transform duration-300 ease-in-out ${rightPanelOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0 hidden md:flex'}`}>
+        <div className={`sylvia-workspace-right-drawer fixed inset-y-0 right-0 z-50 w-[min(88vw,24rem)] shrink-0 transform transition-transform duration-300 ease-in-out lg:relative lg:inset-auto ${rightPanelOpen ? 'flex translate-x-0 lg:w-80 xl:w-96' : 'hidden translate-x-full lg:hidden'}`}>
           <RightPanel
             mission={mission}
             decisionDNA={decisionDNA}
@@ -317,6 +406,7 @@ export function App() {
             onAddDecisionRule={addDecisionRule}
             onAddContextMemory={addContextMemory}
             onOpenFullMissionControl={() => setActiveView('mission-control')}
+            onClose={() => setRightPanelOpen(false)}
           />
         </div>
       )}
