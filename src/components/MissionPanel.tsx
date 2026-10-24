@@ -44,7 +44,7 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2 py-0.5 rounded text-[10px] font-mono-code font-bold bg-indigo-950 text-indigo-300 border border-indigo-500/30">
-              ACTIVE MISSION
+              {mission.id === 'no-active-mission' ? 'NO ACTIVE MISSION' : 'ACTIVE MISSION'}
             </span>
             <span className="text-[10px] font-mono-code text-amber-400 font-semibold">
               {mission.priority} PRIORITY
@@ -88,7 +88,13 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
       <div className="space-y-2">
         <div className="text-[10px] font-mono-code text-slate-400 uppercase">Sequenced Steps</div>
         <div className="space-y-1.5">
-          {mission.steps.map(step => (
+          {mission.steps.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-4 text-xs leading-5 text-slate-400">
+              {mission.id === 'no-active-mission'
+                ? 'No mission is loaded yet. Create a real mission through Career Bridge or Console Stream to see tracked steps here.'
+                : 'The backend returned this mission without any steps. Ask Sylvia to add actionable steps before tracking progress.'}
+            </div>
+          ) : mission.steps.map(step => (
             <div
               key={step.id}
               className={`p-2.5 rounded-lg border transition-all ${

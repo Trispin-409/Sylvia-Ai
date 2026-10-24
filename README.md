@@ -14,6 +14,7 @@ The repository contains the **web frontend and same-origin gateway**. The agent 
 - **Truthful execution states** — the UI distinguishes preparation, approval required, successful execution, verification, and failure; a text-only AI claim is not treated as proof that a write occurred.
 - **Diagnostics and telemetry** — exposes A2A activity, backend health, context IDs, latency, workspace evidence, and regression checks for the operator.
 - **Voice and command-center UX** — combines chat, presence, specialist status, Mission Control, Memory/Decision DNA, Workspace panels, Activity Feed, and diagnostics in one interface.
+- **Career Bridge (FNB Youth Employment & Work Readiness)** — helps young people turn honest formal and informal experience into credible transferable-skill evidence, compare entry-level pathways, identify proof gaps, and follow a practical low-cost seven-day plan. Career-profile persistence is optional and requested only with explicit consent; the workflow reuses the existing ADK tools for saved context and Mission Control.
 
 ## Architecture
 
@@ -151,17 +152,35 @@ The core design principle is simple:
 
 > **Reason → coordinate → request approval → execute → verify → report truthfully.**
 
-## Hackathon Demo Focus
+## FNB App of the Year Hackathon — Career Bridge
 
-The strongest end-to-end demonstration is:
+The FNB challenge selected for this build is **Youth employment and work readiness**:
 
-1. Ask Sylvia to inspect Gmail and identify messages that may require a reply.
-2. Show that the returned records come from the live Gmail tools.
-3. Ask Sylvia to prepare a reply draft.
-4. Show the explicit human approval gate.
-5. Approve the action.
-6. Show the production ADK continuation and the structured Gmail draft result.
-7. Show diagnostics proving the request crossed the A2A gateway to the Google Cloud-hosted backend.
+> How might we shorten the distance between young people and meaningful income by translating skills into credible profiles, practical experience, work opportunities and career mobility?
+
+Career Bridge adds an interactive, real-time workflow to the existing Sylvia application—not a static landing page. It accepts a user's actual experience (including informal work, community contribution, school projects and self-taught work), strengths, interests and access barriers. The existing Google ADK backend is asked to analyse that evidence, distinguish stated facts from inferences, recommend practical entry-level pathways, identify proof gaps and propose low-cost next steps.
+
+### Feature flow
+
+1. Open **Career Bridge** from the sidebar, command palette or companion home.
+2. Enter a real example of something the person has done; choose optional education, strengths, role interests, area and barriers.
+3. Ask Sylvia to return an evidence-grounded skills map, up to three plausible role pathways, a concise CV/profile summary and a seven-day work-readiness plan.
+4. If the person explicitly opts in, Sylvia is asked to save a concise career profile through the existing persistent Context Memory tool. Without opt-in, the workflow asks the agent not to store the profile.
+5. The backend may load existing Decision DNA, career context and Mission Control. The UI reflects mission and memory information only when it receives structured backend tool results.
+6. Demonstrate fairness and trust: informal experience counts, inferred skills are labelled, and no vacancy, employer, qualification or application outcome is invented.
+
+**Current boundary:** this feature produces career guidance and action planning; it does not claim to provide verified live vacancies or submit job applications unless those capabilities are separately connected and confirmed. Confirm actual tool results during the demo rather than relying on AI-generated statements.
+
+### Suggested 90-second demo story
+
+- **0–15 seconds:** Introduce a young person with limited formal experience and a real example of informal work or a project.
+- **15–35 seconds:** Enter the example and relevant access barriers, then run Career Bridge.
+- **35–55 seconds:** Show the returned transferable skills with evidence/inference distinction and the realistic role pathways.
+- **55–70 seconds:** Show the low-cost seven-day action plan and open the resulting Mission Control state if the backend confirmed it.
+- **70–82 seconds:** Show explicit career-profile consent and the structured backend tool trace; point out that a request is not treated as persistence unless the tool confirms it.
+- **82–90 seconds:** Close with the impact: help turn experience into credible evidence and a practical next step toward meaningful income.
+
+The separate submission pack should include a deck of no more than 10 slides, a demo video no longer than 90 seconds, the SSDLC, and the Lean Business Canvas, as required by the FNB programme brief.
 
 ## License
 

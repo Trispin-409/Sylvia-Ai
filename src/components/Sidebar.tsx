@@ -177,6 +177,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        {/* CAREER BRIDGE */}
+        <div>
+          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+            CAREER & WORK READINESS
+          </div>
+          <div className="space-y-0.5">
+            <button
+              id="nav-career-bridge"
+              onClick={() => changeView('career')}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                activeView === 'career'
+                  ? 'bg-emerald-900/40 text-emerald-100 border border-emerald-500/30 font-medium'
+                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Briefcase className="w-4 h-4 text-emerald-300" />
+                <span>Career Bridge</span>
+              </div>
+              <span className="text-[9px] font-mono-code text-emerald-300/80">FNB</span>
+            </button>
+          </div>
+        </div>
+
         {/* MEMORY & DECISION DNA */}
         <div>
           <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">

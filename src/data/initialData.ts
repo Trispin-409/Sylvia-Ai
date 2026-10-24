@@ -6,131 +6,31 @@ import {
 } from '../types';
 
 export const INITIAL_DECISION_DNA: DecisionDNA = {
-  goals: [
-    'Establish complete autonomy over business operations and invoice workflows',
-    'Maintain zero unapproved external write actions across Workspace',
-    'Scale client delivery capacity while maintaining strict quality bounds',
-  ],
-  priorities: [
-    'P1: Operational stability & financial integrity',
-    'P2: Timely communication with core executive stakeholders',
-    'P3: Automated knowledge curation and proactive anomaly alerts',
-  ],
-  constraints: [
-    'Never send external emails or update calendar events without explicit human confirmation',
-    'Maintain strict confidentiality of internal financial records',
-    'Limit context payload sizes to maximize multi-agent reasoning speed',
-  ],
-  preferences: {
-    communicationTone: 'Concise, authoritative, and direct',
-    approvalThreshold: 'All write actions require 1-click explicit cryptographic approval',
-    reviewFrequency: 'Daily 09:00 AM operational brief',
-    preferredCalendar: 'Primary Google Calendar (Work)',
-  },
-  workingStyle: [
-    'Deconstruct vague objectives into concrete 5-step phased missions',
-    'Delegate domain-specific analysis to specialist agents before proposing action',
-    'Highlight blockers and risk levels prominently with color-coded severity',
-  ],
-  decisionRules: [
-    'Rule 01: If an incoming invoice exceeds $5,000, trigger anomaly verification step.',
-    'Rule 02: If draft recipient is outside the verified domain, require secondary review banner.',
-    'Rule 03: Prioritize active mission steps before non-urgent conversational queries.',
-  ],
+  goals: [],
+  priorities: [],
+  constraints: [],
+  preferences: {},
+  workingStyle: [],
+  decisionRules: [],
 };
 
-export const INITIAL_CONTEXT_MEMORIES: ContextMemory[] = [
-  {
-    id: 'mem_01',
-    key: 'BUSINESS_INVOICE_CYCLE',
-    summary: 'Supplier invoice reconciliation occurs bi-weekly on alternating Tuesdays',
-    details: 'Key suppliers: Cloud Infrastructure Corp, Apex Legal Partners, Nexus Creative Studio.',
-    category: 'BUSINESS',
-    confidence: 0.99,
-    createdAt: '2026-08-25T14:20:00Z',
-  },
-  {
-    id: 'mem_02',
-    key: 'EXECUTIVE_CONTACT_TRAVIS',
-    summary: 'Travis Vance is the primary technical lead for API Migration & Cloud Run deployment',
-    details: 'Prefers bulleted executive summaries under 150 words with clear ETA commitments.',
-    category: 'CONTACT',
-    confidence: 0.98,
-    createdAt: '2026-08-26T09:15:00Z',
-  },
-  {
-    id: 'mem_03',
-    key: 'APPROVAL_SECURITY_POLICY',
-    summary: 'Human-in-the-loop gate is strictly enforced on all Gmail and Calendar mutations',
-    details: 'Governed by ADK Security Rule 4B. Write actions pause in WAITING_FOR_APPROVAL state.',
-    category: 'DECISION',
-    confidence: 1.0,
-    createdAt: '2026-08-28T11:00:00Z',
-  },
-  {
-    id: 'mem_04',
-    key: 'BRAND_VOICE_GUIDELINES',
-    summary: 'Communication style: futuristic, calm, intelligent, trustworthy, and mission-oriented',
-    details: 'Avoid generic SaaS buzzwords and hyperbolic sales pitches.',
-    category: 'PREFERENCE',
-    confidence: 0.95,
-    createdAt: '2026-08-29T16:45:00Z',
-  },
-];
+// Personal context must come from the real user and the persistent ADK memory tools.
+// Do not seed fictitious employers, contacts, achievements, or preferences.
+export const INITIAL_CONTEXT_MEMORIES: ContextMemory[] = [];
 
+// The UI starts honestly when it has not yet loaded a verified persistent mission.
+// A mission returned by the live ADK backend replaces this empty state.
 export const INITIAL_MISSION: Mission = {
-  id: 'mission_ops_01',
-  title: 'Business Operations Control',
-  objective: 'Bring invoices, billing issues, website work and records under control.',
-  status: 'IN_PROGRESS',
-  priority: 'HIGH',
-  progress: 40,
-  nextAction: 'Review invoice anomalies and authorize supplier reconciliation',
-  createdAt: '2026-08-30T08:00:00Z',
-  updatedAt: '2026-08-31T07:30:00Z',
-  steps: [
-    {
-      id: 'step_01',
-      number: '01',
-      title: 'Review invoices',
-      description: 'Ingest supplier invoices and verify against banking transaction records',
-      status: 'completed',
-      specialist: 'Workspace Specialist',
-    },
-    {
-      id: 'step_02',
-      number: '02',
-      title: 'Identify billing anomalies',
-      description: 'Cross-reference subscription increases and duplicate charge line items',
-      status: 'in_progress',
-      specialist: 'Context Analyst',
-      actionRequired: true,
-    },
-    {
-      id: 'step_03',
-      number: '03',
-      title: 'Organize records',
-      description: 'Structure tax documentation and categorize expense receipts in Google Drive',
-      status: 'pending',
-      specialist: 'Action Planner',
-    },
-    {
-      id: 'step_04',
-      number: '04',
-      title: 'Clarify website work',
-      description: 'Define staging release scope and milestone deadlines with developer team',
-      status: 'pending',
-      specialist: 'Decision Partner',
-    },
-    {
-      id: 'step_05',
-      number: '05',
-      title: 'Produce owner action list',
-      description: 'Synthesize remaining high-leverage executive approvals into a single 5-minute docket',
-      status: 'pending',
-      specialist: 'Sylvia',
-    },
-  ],
+  id: 'no-active-mission',
+  title: 'No active mission loaded',
+  objective: 'Create or retrieve a mission through Sylvia to display verified persistent work here.',
+  status: 'NOT_STARTED',
+  priority: 'UNSPECIFIED',
+  progress: 0,
+  nextAction: 'Open Career Bridge or Console Stream to start a real mission.',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  steps: [],
 };
 
 export const INITIAL_SPECIALISTS: SpecialistAgent[] = [

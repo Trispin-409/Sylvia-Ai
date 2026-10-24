@@ -16,7 +16,8 @@ export type NavView =
   | 'workspace-gmail'
   | 'workspace-calendar'
   | 'activity'
-  | 'mission-control';
+  | 'mission-control'
+  | 'career';
 
 export interface A2APart {
   kind?: 'text' | 'data' | string;
@@ -124,7 +125,7 @@ export interface Mission {
   title: string;
   objective: string;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNSPECIFIED';
   progress: number;
   steps: MissionStep[];
   nextAction: string;
@@ -136,6 +137,7 @@ export interface DecisionDNA {
   goals: string[];
   priorities: string[];
   constraints: string[];
+  aversions?: string[];
   preferences: Record<string, string>;
   workingStyle: string[];
   decisionRules: string[];
@@ -146,7 +148,7 @@ export interface ContextMemory {
   key: string;
   summary: string;
   details?: string;
-  category: 'BUSINESS' | 'PREFERENCE' | 'DECISION' | 'TECHNICAL' | 'CONTACT';
+  category: 'BUSINESS' | 'PREFERENCE' | 'DECISION' | 'TECHNICAL' | 'CONTACT' | 'CAREER';
   confidence?: number;
   createdAt: string;
   updatedAt?: string;

@@ -17,6 +17,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SylviaCompanionHome } from './components/SylviaCompanionHome';
 import { MissionPanel } from './components/MissionPanel';
+import { CareerBridgePanel } from './components/CareerBridgePanel';
 import { SylviaDotPal, type SylviaPalAgentState } from './components/SylviaDotPal';
 import { NavView } from './types';
 import { DotPal, cleanCustom, registerCustom } from 'dotpals';
@@ -153,7 +154,7 @@ export function App() {
       if (!detail) return;
       const allowedViews: NavView[] = [
         'chat', 'specialists', 'missions', 'memory', 'workspace-gmail',
-        'workspace-calendar', 'activity', 'mission-control',
+        'workspace-calendar', 'activity', 'mission-control', 'career',
       ];
       const view = allowedViews.includes(detail.view as NavView) ? detail.view as NavView : 'chat';
       setActiveView(view);
@@ -183,7 +184,7 @@ export function App() {
   }, [workspaceExpanded]);
 
   useEffect(() => {
-    if (activeView === 'mission-control') setRightPanelOpen(false);
+    if (activeView === 'mission-control' || activeView === 'career') setRightPanelOpen(false);
   }, [activeView]);
 
   const workspacePalState: SylviaPalAgentState =
@@ -446,6 +447,19 @@ export function App() {
                 />
               </div>
             </div>
+          )}
+
+          {activeView === 'career' && (
+            <CareerBridgePanel
+              backendConnected={health.connected}
+              isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
+              onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
+              onOpenConversation={() => setActiveView('chat')}
+              onOpenMissionControl={() => {
+                setRightPanelOpen(false);
+                setActiveView('mission-control');
+              }}
+            />
           )}
 
           {activeView === 'workspace-gmail' && (
