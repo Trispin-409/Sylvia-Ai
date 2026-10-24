@@ -105,9 +105,10 @@ export const CareerBridgePanel: React.FC<CareerBridgePanelProps> = ({
       '3. Recommend up to three plausible entry-level role pathways, explaining fit, likely entry barriers, missing proof, and one small portfolio/work-sample task per pathway. Do not imply an employer has a vacancy unless a real live search tool verified it.',
       '4. Create a short profile/CV summary using only supplied facts. Never invent qualifications, employers, dates, certificates, references, achievements, or years of experience.',
       '5. Give a practical 7-day work-readiness plan with low-cost or low-data alternatives, taking the selected transport/device/data barriers into account.',
-      '6. Identify trusted next-step verification needed (for example, checking a real vacancy, training provider, or qualification requirement). Do not invent URLs or opportunities.',
-      '7. Use get_current_mission to inspect actual state. Create a persistent Mission Control mission titled “Career Bridge — Work Readiness” using start_mission only if no suitable active Career Bridge mission exists; otherwise update or add steps using the actual exposed tool names. Add practical actions, and never mark future actions completed. Report whether the real tool confirmed the mission was persisted.',
-      '8. End with one highest-value next action and one concise question only if needed.',
+      '6. Predict one likely near-term work-readiness barrier or dropout risk using the current profile and any genuinely available saved context or prior outcomes. Explain which input signals support the forecast, what is uncertain, and the smallest practical action that could reduce that risk. Do not invent historical patterns, percentages, or a statistical forecast when there is insufficient data; say the signal is preliminary.',
+      '7. Identify trusted next-step verification needed (for example, checking a real vacancy, training provider, or qualification requirement). Do not invent URLs or opportunities.',
+      '8. Use get_current_mission to inspect actual state. Create a persistent Mission Control mission titled “Career Bridge — Work Readiness” using start_mission only if no suitable active Career Bridge mission exists; otherwise update or add steps using the actual exposed tool names. Add practical actions, and never mark future actions completed. Report whether the real tool confirmed the mission was persisted.',
+      '9. End with one highest-value next action and one concise question only if needed.',
       '',
       'PERSISTENCE RULE:',
       rememberProfile
