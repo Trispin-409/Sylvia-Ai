@@ -182,6 +182,10 @@ export function App() {
     }
   }, [workspaceExpanded]);
 
+  useEffect(() => {
+    if (activeView === 'mission-control') setRightPanelOpen(false);
+  }, [activeView]);
+
   const workspacePalState: SylviaPalAgentState =
     isListening || sylviaState === 'LISTENING'
       ? 'listening'
@@ -262,7 +266,7 @@ export function App() {
         />
       </div>
 
-      {rightPanelOpen && (
+      {rightPanelOpen && activeView !== 'mission-control' && (
         <button
           type="button"
           onClick={() => setRightPanelOpen(false)}
@@ -376,7 +380,7 @@ export function App() {
                 <MissionPanel
                   mission={mission}
                   onUpdateStepStatus={updateMissionStepStatus}
-                  onOpenFullMissionControl={() => setActiveView('mission-control')}
+                  onOpenFullMissionControl={() => { setRightPanelOpen(false); setActiveView('mission-control'); }}
                 />
               </div>
             </div>
