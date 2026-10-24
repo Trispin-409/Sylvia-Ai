@@ -482,7 +482,7 @@ export function useSylvia() {
         `Requested status: ${status}`,
         'Call the actual update_mission_step tool with the exact step_id and requested status. Do not create a new mission. Do not mark any other steps complete. Return the real structured result including whether the update was persisted.',
         'Only report success if the tool result confirms updated=true and persistent=true.',
-      ].join('\\n');
+      ].join('\n');
 
       const response = await sylviaApi.sendA2AMessage(request);
       const updateTool = [...response.toolExecutions].reverse().find(tool =>
