@@ -73,7 +73,7 @@ export function App() {
   const [rightPanelOpen, setRightPanelOpen] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches
   );
-  const [workspaceExpanded, setWorkspaceExpanded] = useState(() => !(typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isCompanionOverlay()));
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(() => !(typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isCompanionOverlay())));
   const [workspaceCharacter, setWorkspaceCharacter] = useState('blu');
   const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
   const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
