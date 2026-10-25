@@ -40,10 +40,10 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
       <div className="flex items-center justify-between pb-2 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-emerald-400" />
-          <h3 className="font-display font-bold text-slate-100">Live Agent Telemetry</h3>
+          <h3 className="font-display font-bold text-slate-100">Agent Runtime Activity</h3>
         </div>
         <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-full bg-emerald-950/40 text-emerald-300 border border-emerald-500/30">
-          Stream Active
+          Execution Log
         </span>
       </div>
 
