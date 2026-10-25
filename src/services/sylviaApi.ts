@@ -21,6 +21,7 @@ export interface ParsedADKResponse {
   calendarEvents: CalendarEvent[];
   workspaceResult?: Record<string, unknown>;
   rawAdkResult?: unknown;
+  streamingUsed?: boolean;
 }
 
 export interface ADKStreamTraceEvent {
@@ -415,6 +416,7 @@ class SylviaApiService {
     }
     if (body?.error) throw new Error(body.error.message || ('A2A error (' + body.error.code + ')'));
     const parsed = this.parseADKResponse(body);
+    parsed.streamingUsed = streamed.supported;
 
     if (workspaceIntent && !parsed.approvalRequest) {
       const gmailRead = /gmail|email|inbox/.test(lower);
