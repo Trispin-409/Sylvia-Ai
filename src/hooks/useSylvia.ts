@@ -302,7 +302,47 @@ export function useSylvia() {
     }
 
     try {
-      const response = await sylviaApi.sendA2AMessage(normalized);
+      const response = await sylviaApi.sendA2AMessage(normalized, event => {
+        if (event.type === 'tool_call') {
+          setSylviaState('WORKING');
+          const toolName = event.toolName || 'ADK tool';
+          const toolKey = toolName.toLowerCase();
+          const node = toolKey.includes('workspace') || toolKey.includes('gmail') || toolKey.includes('calendar')
+            ? 'workspace_specialist'
+            : toolKey.includes('context') || toolKey.includes('memory')
+              ? 'context_analyst'
+              : toolKey.includes('decision')
+                ? 'decision_partner'
+                : toolKey.includes('mission') || toolKey.includes('planner')
+                  ? 'action_planner'
+                  : null;
+          if (node) {
+            setActiveSpecialistNode(node);
+            setDelegationPath(['sylvia_core', node]);
+          }
+          const detail = event.details && typeof event.details === 'object'
+            ? JSON.stringify(event.details).slice(0, 900)
+            : String(event.details || '');
+          addActivity('Google ADK Runtime', 'Live tool call started: ' + toolName, 'working', toolName, detail || undefined);
+        } else if (event.type === 'tool_response') {
+          const toolName = event.toolName || 'ADK tool';
+          const failed = event.status === 'failed';
+          const detail = event.details && typeof event.details === 'object'
+            ? JSON.stringify(event.details).slice(0, 1200)
+            : String(event.details || '');
+          addActivity('Google ADK Runtime', 'Live tool result received: ' + toolName, failed ? 'error' : 'success', toolName, detail || undefined);
+        } else if (event.type === 'status') {
+          if (event.status === 'streaming_unavailable') {
+            addActivity('Google ADK Runtime', event.message || 'The backend has not enabled real-time A2A streaming yet.', 'info', 'A2A_STREAMING');
+          } else if (event.status === 'working' || event.status === 'running') {
+            setSylviaState('WORKING');
+          } else if (event.status === 'input-required' || event.status === 'input_required') {
+            setSylviaState('WAITING_FOR_APPROVAL');
+          } else if (event.status === 'failed') {
+            addActivity('Google ADK Runtime', event.message || 'The ADK task reported a failure.', 'error', 'ADK_TASK_STATUS');
+          }
+        }
+      });
 
       const returnedMission = missionFromToolExecutions(response.toolExecutions);
       if (returnedMission) {
