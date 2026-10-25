@@ -370,9 +370,11 @@ export function useSylvia() {
         addActivity('Workspace Specialist', `Loaded ${response.calendarEvents.length} real Calendar events returned by ADK`, 'success', 'CALENDAR_READ');
       }
       applyBackendWorkspaceHealth(response.workspaceResult);
+      if (!response.streamingUsed) {
       response.toolExecutions.forEach(tool => {
         addActivity(response.specialist, `${tool.status === 'failed' ? 'ADK tool failed' : 'ADK tool executed'}: ${tool.action}`, tool.status === 'failed' ? 'error' : 'success', tool.action, tool.result);
       });
+      }
 
       const pendingApproval = response.approvalRequest;
       if (pendingApproval) {
