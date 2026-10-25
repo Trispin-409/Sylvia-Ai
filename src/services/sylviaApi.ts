@@ -23,6 +23,15 @@ export interface ParsedADKResponse {
   rawAdkResult?: unknown;
 }
 
+export interface ADKStreamTraceEvent {
+  type: 'tool_call' | 'tool_response' | 'status' | 'text' | 'other';
+  id?: string;
+  toolName?: string;
+  status?: string;
+  message?: string;
+  details?: unknown;
+}
+
 const DEFAULT_LIVE_BACKEND = 'https://sylvia-agent-516232832461.africa-south1.run.app';
 
 class SylviaApiService {
@@ -83,6 +92,215 @@ class SylviaApiService {
       const directError = err instanceof Error ? err : new Error(String(err));
       throw new Error(proxyError ? `${directError.message} (proxy: ${proxyError.message})` : directError.message);
     }
+  }
+
+  private isStreamingUnsupported(value: any): boolean {
+    const message = String(value?.error?.message || value?.message || value?.error || '').toLowerCase();
+    return value?.error?.code === -32601 ||
+      message.includes('streaming is not supported') ||
+      message.includes('streaming not supported') ||
+      message.includes('unsupportedoperationerror') ||
+      (message.includes('message/stream') && (message.includes('unsupported') || message.includes('not supported')));
+  }
+
+  private async postA2AStream(
+    payload: any,
+    onTraceEvent?: (event: ADKStreamTraceEvent) => void,
+  ): Promise<{ supported: boolean; body?: any }> {
+    const response = await fetch('/a2a/app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/event-stream')) {
+      const text = await response.text();
+      let body: any = null;
+      try { body = JSON.parse(text); } catch { /* handled below */ }
+      if (this.isStreamingUnsupported(body) || this.isStreamingUnsupported({ message: text })) {
+        return { supported: false };
+      }
+      if (!response.ok) {
+        throw new Error(body?.error?.message || ('ADK streaming endpoint returned HTTP ' + response.status));
+      }
+      if (body?.result || body?.error) return { supported: true, body };
+      throw new Error('ADK stream endpoint returned neither an event stream nor a valid JSON-RPC envelope.');
+    }
+
+    if (!response.ok || !response.body) {
+      const bodyText = await response.text().catch(() => '');
+      if (this.isStreamingUnsupported({ message: bodyText })) return { supported: false };
+      throw new Error('ADK stream failed with HTTP ' + response.status);
+    }
+
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+    let buffer = '';
+    let taskId: string | undefined;
+    let contextId: string | undefined;
+    let taskStatus: any;
+    let finalEnvelope: any;
+    const artifacts = new Map<string, any>();
+    const statusHistory: any[] = [];
+    const emitted = new Set<string>();
+
+    const notifyParts = (parts: any[], metadata?: any) => {
+      for (const part of parts || []) {
+        const partMetadata = part?.metadata || {};
+        const data = part?.data && typeof part.data === 'object' ? part.data : {};
+        const type = String(
+          partMetadata.adk_type || partMetadata.adkType || partMetadata.type ||
+          data.adk_type || data.adkType || data.type || '',
+        ).toLowerCase();
+        const id = data.id != null ? String(data.id) : undefined;
+        const toolName = data.name != null ? String(data.name) : undefined;
+        if (type === 'function_call' || type === 'tool_call') {
+          const key = 'call:' + (id || '') + ':' + (toolName || '');
+          if (emitted.has(key)) continue;
+          emitted.add(key);
+          onTraceEvent?.({ type: 'tool_call', id, toolName, status: 'running', details: data.args || data.input });
+        } else if (type === 'function_response' || type === 'tool_response') {
+          const key = 'response:' + (id || '') + ':' + (toolName || '');
+          if (emitted.has(key)) continue;
+          emitted.add(key);
+          const payloadResult = data.response || data.output || data.result || data;
+          onTraceEvent?.({
+            type: 'tool_response', id, toolName,
+            status: payloadResult?.error ? 'failed' : 'completed',
+            details: payloadResult,
+          });
+        } else if (typeof part?.text === 'string' && part.text.trim() && metadata?.adk_author) {
+          onTraceEvent?.({ type: 'text', message: part.text, details: { author: metadata.adk_author } });
+        }
+      }
+    };
+
+    const consumeEvent = (packet: string) => {
+      const dataLines = packet.split(/\r?\n/).filter(line => line.startsWith('data:'));
+      if (!dataLines.length) return;
+      const raw = dataLines.map(line => line.slice(5).replace(/^ /, '')).join('\n');
+      if (!raw || raw === '[DONE]') return;
+
+      let event: any;
+      try { event = JSON.parse(raw); } catch { return; }
+      if (event?.error && this.isStreamingUnsupported(event)) {
+        throw new Error('ADK_STREAM_UNSUPPORTED:' + (event.error.message || event.message || 'streaming unsupported'));
+      }
+      if (event?.result && (event.result.artifacts || event.result.history || event.result.status)) {
+        finalEnvelope = event;
+        const result = event.result;
+        taskId = result.id ? String(result.id) : taskId;
+        contextId = result.contextId ? String(result.contextId) : contextId;
+        taskStatus = result.status || taskStatus;
+        for (const artifact of result.artifacts || []) {
+          if (!artifact?.parts) continue;
+          const id = String(artifact.artifactId || artifact.artifact_id || artifacts.size);
+          artifacts.set(id, artifact);
+          notifyParts(artifact.parts, artifact.metadata);
+        }
+        return;
+      }
+
+      const task = event?.task || (String(event?.kind || '').toLowerCase() === 'task' ? event : null);
+      if (task) {
+        if (task.id) taskId = String(task.id);
+        if (task.contextId) contextId = String(task.contextId);
+        if (task.status) taskStatus = task.status;
+        for (const artifact of task.artifacts || []) {
+          if (!artifact?.parts) continue;
+          const id = String(artifact.artifactId || artifact.artifact_id || artifacts.size);
+          artifacts.set(id, artifact);
+          notifyParts(artifact.parts, artifact.metadata);
+        }
+        for (const message of task.history || []) {
+          if (message?.parts) {
+            statusHistory.push(message);
+            notifyParts(message.parts, message.metadata);
+          }
+        }
+      }
+
+      if (event?.taskId) taskId = String(event.taskId);
+      if (event?.contextId) contextId = String(event.contextId);
+
+      const kind = String(event?.kind || event?.type || '').toLowerCase().replace(/_/g, '-');
+      if (event?.artifact?.parts) {
+        const artifact = event.artifact;
+        const id = String(artifact.artifactId || artifact.artifact_id || artifacts.size);
+        const existing = artifacts.get(id);
+        const append = event.append === true;
+        const merged = existing && append
+          ? { ...existing, ...artifact, parts: [...(existing.parts || []), ...(artifact.parts || [])] }
+          : artifact;
+        artifacts.set(id, merged);
+        notifyParts(artifact.parts, artifact.metadata);
+      }
+      if (event?.status) {
+        taskStatus = event.status;
+        const state = String(event.status.state || event.status.status || '').toLowerCase();
+        onTraceEvent?.({
+          type: 'status',
+          status: state || kind || 'working',
+          message: String(event.status.message?.parts?.map((part: any) => part?.text || '').filter(Boolean).join(' ') || ''),
+        });
+        if (event.status.message?.parts) {
+          statusHistory.push(event.status.message);
+          notifyParts(event.status.message.parts, event.status.message.metadata);
+        }
+      } else if (kind.includes('status') || event?.state) {
+        onTraceEvent?.({ type: 'status', status: String(event?.state || kind || ''), message: String(event?.message || '') });
+      }
+    };
+
+    const consumeBuffer = (force = false) => {
+      const packets = buffer.split(/\r?\n\r?\n/);
+      buffer = force ? '' : (packets.pop() || '');
+      for (const packet of packets) consumeEvent(packet);
+      if (force && buffer.trim()) consumeEvent(buffer);
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        consumeBuffer();
+      }
+      buffer += decoder.decode();
+      consumeBuffer(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith('ADK_STREAM_UNSUPPORTED:')) return { supported: false };
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (finalEnvelope) return { supported: true, body: finalEnvelope };
+    if (!taskId && !contextId && artifacts.size === 0 && statusHistory.length === 0) {
+      throw new Error('ADK stream ended without task, artifact, or status events.');
+    }
+
+    const artifactList = [...artifacts.values()];
+    const history = [
+      ...artifactList.map(artifact => ({ role: 'assistant', parts: artifact.parts || [], metadata: artifact.metadata || {} })),
+      ...statusHistory.map(message => ({ role: message.role || 'assistant', parts: message.parts || [], metadata: message.metadata || {} })),
+    ];
+    return {
+      supported: true,
+      body: {
+        jsonrpc: '2.0',
+        id: payload.id,
+        result: {
+          id: taskId,
+          contextId: contextId,
+          status: taskStatus || { state: 'completed' },
+          artifacts: artifactList,
+          history,
+        },
+      },
+    };
   }
 
   public async checkHealth(): Promise<BackendHealth> {
@@ -164,28 +382,48 @@ class SylviaApiService {
     };
   }
 
-  public async sendA2AMessage(userMessage: string): Promise<ParsedADKResponse> {
+  public async sendA2AMessage(
+    userMessage: string,
+    onTraceEvent?: (event: ADKStreamTraceEvent) => void,
+  ): Promise<ParsedADKResponse> {
     const lower = userMessage.toLowerCase();
     const workspaceIntent = /gmail|email|inbox|calendar|meeting|schedule/.test(lower);
-    const payload = {
-      jsonrpc: '2.0', id: Date.now(), method: 'message/send',
+    const payload: any = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'message/stream',
       params: {
         ...(this.currentContextId ? { contextId: this.currentContextId } : {}),
-        message: { messageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, role: 'user', parts: [{ text: this.buildAgentRequest(userMessage) }] },
+        message: {
+          messageId: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          role: 'user',
+          parts: [{ text: this.buildAgentRequest(userMessage) }],
+        },
       },
     };
-    const body = await this.postA2A(payload);
-    if (body?.error) throw new Error(body.error.message || `A2A error (${body.error.code})`);
+
+    const streamed = await this.postA2AStream(payload, onTraceEvent);
+    let body = streamed.body;
+    if (!streamed.supported) {
+      onTraceEvent?.({
+        type: 'status',
+        status: 'streaming_unavailable',
+        message: 'The ADK backend has not enabled A2A streaming; Sylvia will show verified tool results when the run finishes.',
+      });
+      payload.method = 'message/send';
+      body = await this.postA2A(payload);
+    }
+    if (body?.error) throw new Error(body.error.message || ('A2A error (' + body.error.code + ')'));
     const parsed = this.parseADKResponse(body);
 
     if (workspaceIntent && !parsed.approvalRequest) {
       const gmailRead = /gmail|email|inbox/.test(lower);
       const calendarRead = /calendar|meeting|schedule/.test(lower);
       if (gmailRead && parsed.gmailMessages.length === 0 && !parsed.toolExecutions.some(t => t.toolName === 'GMAIL' && t.status === 'completed')) {
-        parsed.reply = `I could not verify live Gmail data from the connected Workspace Specialist. I will not display or invent inbox records.\n\nBackend response: ${parsed.reply}`;
+        parsed.reply = 'I could not verify live Gmail data from the connected Workspace Specialist. I will not display or invent inbox records.\n\nBackend response: ' + parsed.reply;
       }
       if (calendarRead && parsed.calendarEvents.length === 0 && !parsed.toolExecutions.some(t => t.toolName === 'CALENDAR' && t.status === 'completed')) {
-        parsed.reply = `I could not verify live Calendar data from the connected Workspace Specialist. I will not display or invent calendar events.\n\nBackend response: ${parsed.reply}`;
+        parsed.reply = 'I could not verify live Calendar data from the connected Workspace Specialist. I will not display or invent calendar events.\n\nBackend response: ' + parsed.reply;
       }
     }
     return parsed;
