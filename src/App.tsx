@@ -17,7 +17,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SylviaCompanionHome } from './components/SylviaCompanionHome';
 import { MissionPanel } from './components/MissionPanel';
-import { CareerBridgePanel } from './components/CareerBridgePanel';
+import { CareerBridgeWorkspace } from './components/CareerBridgeWorkspace';
 import { SylviaDotPal, type SylviaPalAgentState } from './components/SylviaDotPal';
 import { NavView } from './types';
 import { DotPal, cleanCustom, registerCustom } from 'dotpals';
@@ -73,7 +73,7 @@ export function App() {
   const [rightPanelOpen, setRightPanelOpen] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches
   );
-  const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(() => !(typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isCompanionOverlay())));
   const [workspaceCharacter, setWorkspaceCharacter] = useState('blu');
   const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
   const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
@@ -201,6 +201,18 @@ export function App() {
       : sylviaState === 'ERROR'
       ? 'error'
       : 'idle';
+
+  if (workspaceExpanded && activeView === 'career') {
+    return (
+      <CareerBridgeWorkspace
+        backendConnected={health.connected}
+        isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
+        onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
+        onOpenConversation={() => setActiveView('chat')}
+        onOpenMissionControl={() => setActiveView('mission-control')}
+      />
+    );
+  }
 
   if (!workspaceExpanded) {
     return (
@@ -450,7 +462,7 @@ export function App() {
           )}
 
           {activeView === 'career' && (
-            <CareerBridgePanel
+            <CareerBridgeWorkspace
               backendConnected={health.connected}
               isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
               onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}

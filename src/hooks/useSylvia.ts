@@ -161,7 +161,7 @@ const savedCareerMemoryFromTools = (tools: ToolExecution[]): ContextMemory | nul
 
 export function useSylvia() {
   const [sylviaState, setSylviaState] = useState<SylviaState>('IDLE');
-  const [activeView, setActiveView] = useState<NavView>('chat');
+  const [activeView, setActiveView] = useState<NavView>('career');
   const [messages, setMessages] = useState<ChatItem[]>([{
     id: 'welcome_msg_init', sender: 'sylvia',
     text: "Greetings. I am **Sylvia**, your collaborative digital operator.\n\nI am synchronized with your **Decision DNA** and **Context Memory**. Google Workspace status will be shown only after a live backend Workspace check or operation.\n\nHow can we advance your objectives today?",
