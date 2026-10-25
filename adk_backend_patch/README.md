@@ -10,24 +10,27 @@ This folder is an integration-ready patch for the separate Python Google ADK bac
 - Returns a UTC last-checked timestamp, source URL and conservative status fields.
 - Marks every candidate as search_result_only, page_checked=false and availability_status=unknown.
 - Returns Google-provided search-entry-point HTML when the SDK supplies it, so the Companion can render the required Search suggestions.
+- Provides an opportunity_researcher specialist factory that uses the existing ADK model setting.
 - Fails closed. Missing credentials, malformed model output, missing grounded sources and service errors produce an error/status result—not fake listings.
 
 This initial step does not visit the source page itself. The timestamp is when Google Search grounding ran, not when the employer posted the opportunity. A separate, permitted page-verification stage is needed before any vacancy can be shown as open or verified.
 
 ## Wire it into the existing ADK backend
 
-1. Copy opportunity_discovery.py into the existing backend as app/opportunity_discovery.py (the backend containing app/agent.py).
-2. Confirm google-genai is installed in the same Python environment used by the ADK service.
-3. Add this import to the existing app/agent.py:
+1. Copy opportunity_discovery.py and opportunity_researcher.py into the existing backend as app/opportunity_discovery.py and app/opportunity_researcher.py (the backend containing app/agent.py).
+2. Confirm google-genai and google-adk are installed in the same Python environment used by the ADK service.
+3. In the existing app/agent.py, add these imports:
 
-   from app.opportunity_discovery import search_live_opportunities
+   from app.opportunity_researcher import build_opportunity_researcher
 
-4. Expose search_live_opportunities as a normal custom function tool to the existing Sylvia root agent or to a dedicated opportunity-research specialist. Extend the existing tools list; do not recreate or replace the root agent, current subagents, callbacks, session service, Memory, Evidence or Decision DNA configuration.
-5. Deploy using the existing ADK backend deployment workflow.
+4. After the existing MODEL variable is defined, build the specialist:
 
-Recommended researcher instructions:
+   opportunity_researcher = build_opportunity_researcher(MODEL)
 
-Use search_live_opportunities for current public jobs, internships, learnerships, bursaries, training and mentorship leads. Present the source URL and exact last_checked_at time. Always say results are search_result_only until the official source page is checked. Never claim a vacancy is open, paid, verified or accepting applications unless tool evidence supports that specific claim. If search fails, say it failed; never fill the gap with remembered or invented listings.
+5. In the existing Sylvia root agent's sub_agents list, append opportunity_researcher alongside the current context, decision, planning and Workspace specialists. Do not remove or recreate any existing specialists, tools, callbacks, session service, Memory, Evidence or Decision DNA configuration. If sub_agents is defined indirectly, extend that existing list instead.
+6. Deploy using the same ADK backend deployment workflow already used for Sylvia.
+
+Recommended researcher instructions are embedded in opportunity_researcher.py. It must report the source URL and exact last_checked_at time, state that candidates are search_result_only until the official source page is checked, and never invent listings or claim availability without tool evidence.
 
 ## Configuration
 
