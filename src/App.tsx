@@ -202,6 +202,18 @@ export function App() {
       ? 'error'
       : 'idle';
 
+  if (workspaceExpanded && activeView === 'career') {
+    return (
+      <CareerBridgeWorkspace
+        backendConnected={health.connected}
+        isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
+        onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
+        onOpenConversation={() => setActiveView('chat')}
+        onOpenMissionControl={() => setActiveView('mission-control')}
+      />
+    );
+  }
+
   if (!workspaceExpanded) {
     return (
       <SylviaCompanionHome
