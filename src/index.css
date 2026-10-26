@@ -2039,6 +2039,33 @@
   background: var(--sylvia-glass-strong) !important;
   box-shadow: 10px 0 34px rgba(25, 35, 58, .035);
 }
+.sylvia-workspace-sidebar > aside,
+.sylvia-workspace-right-drawer > div,
+.sylvia-workspace-shell .glass-panel-elevated {
+  color: var(--sylvia-ink) !important;
+  background: var(--sylvia-glass-strong) !important;
+  border-color: var(--sylvia-border) !important;
+  box-shadow: var(--sylvia-shadow) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
+}
+.sylvia-workspace-shell [class*="text-indigo-"] {
+  color: var(--sylvia-accent) !important;
+}
+.sylvia-workspace-shell [class*="border-indigo-"] {
+  border-color: rgba(83, 105, 216, .24) !important;
+}
+.sylvia-workspace-shell [class*="bg-indigo-"] {
+  background-color: rgba(83, 105, 216, .08) !important;
+}
+.sylvia-workspace-shell [class*="from-indigo-"],
+.sylvia-workspace-shell [class*="from-purple-"] {
+  --tw-gradient-from: rgba(150, 165, 224, .2) var(--tw-gradient-from-position) !important;
+}
+.sylvia-workspace-shell #sylvia-starfield-canvas {
+  filter: none !important;
+  opacity: .16 !important;
+}
 .sylvia-workspace-topbar {
   border-bottom: 1px solid var(--sylvia-border);
   background: var(--sylvia-glass-strong) !important;
