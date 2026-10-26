@@ -2027,7 +2027,7 @@
 .sylvia-workspace-shell .glass-panel-subtle,
 .sylvia-workspace-shell .glass-panel-elevated,
 .sylvia-companion-root .glass-panel,
-.sylvia-companion-root [class*="rounded-"][class*="border"] {
+.sylvia-companion-root [class*="bg-white/"] {
   color: var(--sylvia-ink);
   background: var(--sylvia-glass) !important;
   border-color: var(--sylvia-border) !important;
