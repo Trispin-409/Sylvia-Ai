@@ -174,10 +174,10 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   // 4. Skill gap state & D3 Radar view
   const [skillGapViewMode, setSkillGapViewMode] = useState<'radar' | 'bars'>('bars');
   const [targetRoleId, setTargetRoleId] = useState<string>('product-design');
-  const [skills, setSkills] = useState([
-    { name: 'Design', percentage: 82, color: 'bg-[#1a6682]' },
-    { name: 'Data', percentage: 58, color: 'bg-[#1a6682]' },
-    { name: 'Comm.', percentage: 74, color: 'bg-[#1a6682]' },
+  const [skills, setSkills] = useState<Array<{ name: string; percentage: number | null; color: string }>>([
+    { name: 'Design', percentage: null, color: 'bg-[#1a6682]' },
+    { name: 'Data', percentage: null, color: 'bg-[#1a6682]' },
+    { name: 'Comm.', percentage: null, color: 'bg-[#1a6682]' },
   ]);
   const [showSkillGapModal, setShowSkillGapModal] = useState(false);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
@@ -198,8 +198,8 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
 
   // 7. Roadmap state
   const [roadmap, setRoadmap] = useState<RoadmapItem[]>([
-    { id: 'rm_1', title: 'Complete profile', completed: true },
-    { id: 'rm_2', title: 'Upload & revamp CV', completed: true },
+    { id: 'rm_1', title: 'Complete profile', completed: false },
+    { id: 'rm_2', title: 'Upload & revamp CV', completed: false },
     { id: 'rm_3', title: 'Finish "Data storytelling" course', completed: false },
     { id: 'rm_4', title: 'Practice 3 mock interviews', completed: false },
     { id: 'rm_5', title: 'Apply to 5 internships', completed: false },
@@ -702,11 +702,11 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                     <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className="h-full bg-[#1a6682] rounded-full transition-all duration-700"
-                        style={{ width: `${skill.percentage}%` }}
+                        style={{ width: `${skill.percentage ?? 0}%` }}
                       />
                     </div>
                     <span className="font-bold text-slate-700 w-8 text-right shrink-0 text-[11px] sm:text-xs">
-                      {skill.percentage}%
+                      {skill.percentage === null ? 'Not analyzed' : `${skill.percentage}%`}
                     </span>
                   </div>
                 ))}
