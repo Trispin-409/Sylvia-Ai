@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, ArrowRight, ArrowUp, Brain, BriefcaseBusiness, CalendarDays, CheckCircle2, ChevronRight,
   Clock3, Expand, LoaderCircle, Mail, MessageCircle, Mic, MicOff, Network, Plus, Sparkles, Target,
-  Volume2, VolumeX, Wifi, WifiOff, XCircle,
+  Volume2, VolumeX, Wifi, WifiOff, XCircle, Palette,
 } from 'lucide-react';
 import { ApprovalRequest, BackendHealth, ChatItem, NavView, SylviaState } from '../types';
 import { DotPal, cleanCustom, registerCustom, type CustomPal } from 'dotpals';
@@ -137,6 +137,10 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
   onToggleVoiceOutput, onOpenWorkspace,
 }) => {
   const [command, setCommand] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try { return window.localStorage.getItem('sylvia-theme') === 'dark' ? 'dark' : 'light'; }
+    catch { return 'light'; }
+  });
   const [selectedCharacter, setSelectedCharacter] = useState<string>('blu');
   const [hasCustomPal, setHasCustomPal] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -247,6 +251,15 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
               {health.connected ? 'Backend connected' : 'Backend not confirmed'}
             </div>
           </div>
+        
+          <button type="button" onClick={() => {
+            const nextTheme = theme === 'light' ? 'dark' : 'light';
+            setTheme(nextTheme);
+            document.documentElement.dataset.sylviaTheme = nextTheme;
+            try { window.localStorage.setItem('sylvia-theme', nextTheme); } catch { /* Theme still applies for this session. */ }
+          }} className="sylvia-workspace-control inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm" aria-label="Change appearance" title="Change appearance">
+            <Palette className="h-4 w-4" /><span>{theme === 'light' ? 'Light theme' : 'Dark theme'}</span>
+          </button>
         </header>
 
         <main className="sylvia-main flex flex-1 flex-col">
