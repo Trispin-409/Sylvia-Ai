@@ -82,17 +82,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Primary Action Button */}
-      <div className="p-3">
-        <button
-          id="btn-new-conversation"
-          onClick={startNewConversation}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-all shadow-sm group"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
-          <span>New Session</span>
-        </button>
-      </div>
+      {!compactWorkspaceOnly && (
+        <div className="p-3">
+          <button
+            id="btn-new-conversation"
+            onClick={startNewConversation}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-all shadow-sm group"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
+            <span>New Session</span>
+          </button>
+        </div>
+      )}
 
       {/* Navigation Sections */}
       {compactWorkspaceOnly ? (
