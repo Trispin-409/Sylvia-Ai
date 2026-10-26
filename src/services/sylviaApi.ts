@@ -271,7 +271,14 @@ class SylviaApiService {
         if (part?.text) { replyText = String(part.text); break; }
       }
     }
-    if (!replyText) replyText = 'Sylvia completed the request through the Google ADK backend.';
+    if (!replyText) {
+      const taskState = String(result?.status?.state || '').toLowerCase();
+      replyText = taskState === 'failed'
+        ? 'The live ADK task reported failure but did not provide a readable explanation. Check Activity for the returned tool results.'
+        : taskState === 'input-required'
+          ? 'The live ADK task needs more information before it can continue.'
+          : 'The live ADK backend returned no textual reply. Sylvia will not report this request as completed without a response.';
+    }
 
     const functionData = this.extractFunctionData(result);
     const responseById = new Map<string, any>();
@@ -292,7 +299,7 @@ class SylviaApiService {
       else if (toolName.toLowerCase().includes('calendar') || toolName.toLowerCase().includes('schedule')) category = 'CALENDAR';
       else if (toolName.toLowerCase().includes('mission') || toolName.toLowerCase().includes('step')) category = 'MISSION';
       else if (toolName.toLowerCase().includes('memory') || toolName.toLowerCase().includes('dna')) category = 'MEMORY';
-      const failed = Boolean(responseBody?.error) || Boolean(response?.error);
+      const failed = Boolean(responseBody?.error) || Boolean(response?.error) || response?.isError === true || responseBody?.success === false || responseBody?.ok === false;
       toolExecutions.push({
         id: item.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         toolName: category,
