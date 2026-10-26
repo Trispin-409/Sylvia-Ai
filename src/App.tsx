@@ -21,7 +21,7 @@ import { CareerBridgeWorkspace } from './components/CareerBridgeWorkspace';
 import { SylviaDotPal, type SylviaPalAgentState } from './components/SylviaDotPal';
 import { NavView } from './types';
 import { DotPal, cleanCustom, registerCustom } from 'dotpals';
-import { Menu, Dna, Minimize2, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { Menu, Dna, Minimize2, PanelRightOpen, PanelRightClose, Palette } from 'lucide-react';
 
 export function App() {
   const {
@@ -75,6 +75,15 @@ export function App() {
   );
   const [workspaceExpanded, setWorkspaceExpanded] = useState(() => !(typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isCompanionOverlay())));
   const [workspaceCharacter, setWorkspaceCharacter] = useState('blu');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try { return window.localStorage.getItem('sylvia-theme') === 'dark' ? 'dark' : 'light'; }
+    catch { return 'light'; }
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.sylviaTheme = theme;
+    try { window.localStorage.setItem('sylvia-theme', theme); } catch { /* Theme still applies for this session. */ }
+  }, [theme]);
   const [nativeVoiceState, setNativeVoiceState] = useState<SylviaNativeVoiceState>({ isListening: false, transcript: '' });
   const isNativeAndroid = typeof window !== 'undefined' && Boolean(window.SylviaAndroid?.isNativeApp());
   const isNativeCompanionOverlay = isNativeAndroid && Boolean(window.SylviaAndroid?.isCompanionOverlay());
@@ -251,7 +260,7 @@ export function App() {
   }
 
   return (
-    <div className="sylvia-workspace-shell relative flex h-[100dvh] w-screen overflow-hidden font-sans text-slate-100 select-none">
+    <div data-sylvia-theme={theme} className="sylvia-workspace-shell relative flex h-[100dvh] w-screen overflow-hidden font-sans select-none">
       <StarField sylviaState={sylviaState} />
       {sidebarOpen && (
         <button
@@ -339,6 +348,10 @@ export function App() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setTheme(current => current === 'light' ? 'dark' : 'light')} className="sylvia-workspace-control" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>
+              <Palette className="h-4 w-4" />
+              <span className="hidden sm:inline">{theme === 'light' ? 'Light' : 'Dark'}</span>
+            </button>
             {activeView !== 'mission-control' && (
               <button
                 type="button"

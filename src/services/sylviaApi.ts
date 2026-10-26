@@ -59,30 +59,21 @@ class SylviaApiService {
   }
 
   private async postA2A(payload: unknown): Promise<any> {
-    let proxyError: Error | null = null;
-    try {
-      const response = await fetch('/a2a/app', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
-      });
-      const text = await response.text();
-      const body = (() => { try { return JSON.parse(text); } catch { return null; } })();
-      if (!response.ok) throw new Error(body?.error?.message || `A2A proxy returned HTTP ${response.status}`);
-      if (!body) throw new Error('A2A proxy returned a non-JSON response.');
-      return body;
-    } catch (err) {
-      proxyError = err instanceof Error ? err : new Error(String(err));
+    // Use the same-origin Express gateway in both local development and production.
+    // This keeps browser requests on one path and avoids direct-backend CORS fallbacks.
+    const response = await fetch('/a2a/app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const responseText = await response.text();
+    let body: any = null;
+    try { body = JSON.parse(responseText); } catch { /* handled below */ }
+    if (!response.ok) {
+      throw new Error(body?.error?.message || `Sylvia gateway returned HTTP ${response.status}`);
     }
-    try {
-      const response = await fetch(`${this.backendUrl}/a2a/app`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.error?.message || `Google ADK backend returned HTTP ${response.status}`);
-      return body;
-    } catch (err) {
-      const directError = err instanceof Error ? err : new Error(String(err));
-      throw new Error(proxyError ? `${directError.message} (proxy: ${proxyError.message})` : directError.message);
-    }
+    if (!body) throw new Error('Sylvia gateway returned a non-JSON response.');
+    return body;
   }
 
   public async checkHealth(): Promise<BackendHealth> {
