@@ -331,7 +331,9 @@ export function useSylvia() {
       }
       applyBackendWorkspaceHealth(response.workspaceResult);
       response.toolExecutions.forEach(tool => {
-        addActivity(response.specialist, `${tool.status === 'failed' ? 'ADK tool failed' : 'ADK tool executed'}: ${tool.action}`, tool.status === 'failed' ? 'error' : 'success', tool.action, tool.result);
+        const activityStatus = tool.status === 'failed' ? 'error' : tool.status === 'completed' ? 'success' : 'working';
+        const activityLabel = tool.status === 'failed' ? 'ADK tool failed' : tool.status === 'completed' ? 'ADK tool completed' : 'ADK tool awaiting a response';
+        addActivity(response.specialist, `${activityLabel}: ${tool.action}`, activityStatus, tool.action, tool.result);
       });
 
       const pendingApproval = response.approvalRequest;
