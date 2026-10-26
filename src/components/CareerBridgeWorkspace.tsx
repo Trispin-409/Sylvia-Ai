@@ -119,6 +119,29 @@ const INTERVIEW_QUESTIONS = [
   },
 ];
 
+async function extractUploadedFileText(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.txt')) return file.text();
+  if (name.endsWith('.pdf')) {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const worker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs?url');
+    pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages: string[] = [];
+    for (let number = 1; number <= pdf.numPages; number += 1) {
+      const page = await pdf.getPage(number);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item: { str?: string }) => item.str || '').join(' '));
+    }
+    return pages.join('\n').trim();
+  }
+  if (name.endsWith('.docx')) {
+    const mammoth = await import('mammoth');
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value.trim();
+  }
+  throw new Error('Upload a PDF, DOCX, or TXT CV.');
+}
 export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   backendConnected,
   isWorking,
@@ -295,45 +318,17 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
   };
 
   const handleRevampCVWithAI = async () => {
-    setIsRevamping(true);
     setShowRevampModal(true);
+    if (!cvText.trim()) { setRevampFeedback('Upload a readable PDF, DOCX or TXT CV first. Sylvia will review the text extracted from your actual file.'); return; }
+    setIsRevamping(true);
     try {
-      const prompt = `You are Sylvia, executive resume optimizer. The user wants to revamp their CV for modern tech and design internships. Target role: ${searchQuery || 'Product Design / Tech'}.
-Generate:
-1. Updated CV Score breakdown (e.g. 94/100).
-2. Three impactful bullet points rewritten with strong action verbs (Before vs After).
-3. Top 4 ATS keywords they must include.`;
+      const prompt = 'You are Sylvia, a truthful CV reviewer. Review the actual extracted CV below for the target role ' + (searchQuery || 'entry-level work') + '. Use only details in the CV. Never invent employers, qualifications, dates, achievements, metrics or skills. Suggest specific rewrites, relevant ATS keywords, and explain the basis of any score; do not assume a score.\n\nFilename: ' + cvFileName + '\n\nCV TEXT:\n' + cvText.slice(0, 14000);
       const res = await onAnalyze(prompt);
-      if (res?.reply) {
-        setRevampFeedback(res.reply);
-        setCvScore(95);
-      } else {
-        setRevampFeedback(`### AI Revamped Recommendations
-**Overall ATS Compatibility Score: 94 / 100**
-
-• **Action Verb Enhancement:**
-  - *Before:* Helped team design customer onboarding screens.
-  - *After:* Architected end-to-end customer onboarding design flows in Figma, decreasing early churn by 18%.
-
-• **Quantifiable Metrics:**
-  - *Before:* Worked on marketing collaterals and social posts.
-  - *After:* Created unified brand design system components across 12 digital campaigns, lifting engagement by 32%.
-
-• **ATS Keyword Match:**
-  - Design Systems · Cross-Functional Collaboration · Wireframing · Usability Testing`);
-      }
-    } catch {
-      setRevampFeedback(`### AI Revamped Recommendations
-**Overall ATS Compatibility Score: 94 / 100**
-
-• **Action Verb Enhancement:**
-  - *Before:* Responsible for user testing and designs.
-  - *After:* Spearheaded rapid prototyping and usability testing across 25+ participants, accelerating feature launch by 2 weeks.`);
-    } finally {
-      setIsRevamping(false);
-    }
+      setRevampFeedback(res?.reply || 'The live backend returned no CV analysis. No score has been assumed.');
+      setCvScore(null);
+    } catch (error) { setRevampFeedback('CV analysis failed: ' + (error instanceof Error ? error.message : String(error))); setCvScore(null); }
+    finally { setIsRevamping(false); }
   };
-
   const handleReanalyzeSkills = async () => {
     setIsReanalyzing(true);
     try {
@@ -583,17 +578,23 @@ Generate:
                 type="file"
                 accept=".pdf,.docx,.txt"
                 className="sr-only"
-                onChange={e => {
-                  if (e.target.files?.[0]) {
-                    setCvFileName(e.target.files[0].name);
-                  }
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setCvUploadError(null); setCvText(''); setCvFileName('');
+                  try {
+                    const extracted = await extractUploadedFileText(file);
+                    if (!extracted.trim()) throw new Error('No readable text found. This may be a scanned PDF; use a text-based PDF or DOCX.');
+                    setCvFileName(file.name); setCvText(extracted.slice(0, 14000)); setCvScore(null);
+                  } catch (error) { setCvUploadError(error instanceof Error ? error.message : 'Could not read this CV file.'); }
                 }}
               />
               <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#1a6682]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#1a6682]" />
-                <span>{cvFileName} uploaded</span>
+                <span>{cvFileName ? cvFileName + ' ready for analysis' : 'Choose a PDF, DOCX or TXT CV'}</span>
               </div>
             </label>
+            {cvUploadError && <p className="text-[10px] text-rose-600" role="alert">{cvUploadError}</p>}
 
             {/* Action Button */}
             <button
