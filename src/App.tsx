@@ -211,17 +211,7 @@ export function App() {
       ? 'error'
       : 'idle';
 
-  if (workspaceExpanded && activeView === 'career') {
-    return (
-      <CareerBridgeWorkspace
-        backendConnected={health.connected}
-        isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
-        onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
-        onOpenConversation={() => setActiveView('chat')}
-        onOpenMissionControl={() => setActiveView('mission-control')}
-      />
-    );
-  }
+
 
   if (!workspaceExpanded) {
     return (
@@ -383,7 +373,7 @@ export function App() {
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+        <main className="flex-1 min-h-0 relative w-full overflow-hidden">
           {activeView === 'chat' && (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
               <div className="sylvia-workspace-chat-stage">
@@ -475,16 +465,24 @@ export function App() {
           )}
 
           {activeView === 'career' && (
-            <CareerBridgeWorkspace
-              backendConnected={health.connected}
-              isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
-              onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
-              onOpenConversation={() => setActiveView('chat')}
-              onOpenMissionControl={() => {
-                setRightPanelOpen(false);
-                setActiveView('mission-control');
-              }}
-            />
+            <div
+              id="career-bridge-scroll-viewport"
+              className="sylvia-career-scroll-container absolute inset-0 flex flex-col overflow-y-auto overflow-x-hidden bg-[#f0f4f9] overscroll-y-contain focus:outline-none"
+              tabIndex={0}
+            >
+              <CareerBridgeWorkspace
+                backendConnected={health.connected}
+                isWorking={['THINKING', 'ANALYZING', 'WORKING'].includes(sylviaState)}
+                onAnalyze={async prompt => (await sendMessage(prompt)) ?? null}
+                onOpenConversation={() => setActiveView('chat')}
+                onOpenMissionControl={() => {
+                  setRightPanelOpen(false);
+                  setActiveView('mission-control');
+                }}
+                onNavigateToView={view => setActiveView(view)}
+                onReturnToCompanion={() => setWorkspaceExpanded(false)}
+              />
+            </div>
           )}
 
           {activeView === 'workspace-gmail' && (

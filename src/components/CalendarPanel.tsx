@@ -7,6 +7,7 @@ import {
   Users,
   AlertCircle,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface CalendarPanelProps {
   events: CalendarEvent[];
@@ -35,61 +36,67 @@ export const CalendarPanel: React.FC<CalendarPanelProps> = ({ events, workspaceH
           No live Calendar events loaded.
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {items.map(evt => (
-            <div
-              key={evt.id}
-              className={`p-4 rounded-xl border transition-all ${
-                isToday
-                  ? 'glass-panel-elevated border-sky-500/30 shadow-lg shadow-sky-950/20'
-                  : 'bg-slate-950/60 border-slate-800/80'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h4 className="font-display font-semibold text-sm text-slate-100 mb-1">
-                    {evt.title}
-                  </h4>
+        <div className="space-y-3">
+          {items.map(evt => {
+            const copyText = `${evt.title}\nTime: ${evt.startTime} - ${evt.endTime} (${evt.durationMinutes}m)\nCalendar: ${evt.calendarName}${evt.location ? `\nLocation: ${evt.location}` : ''}${evt.attendees?.length ? `\nAttendees: ${evt.attendees.join(', ')}` : ''}`;
+            return (
+              <div
+                key={evt.id}
+                className={`p-4 rounded-xl border transition-all group select-text ${
+                  isToday
+                    ? 'glass-panel-elevated border-sky-500/30 shadow-lg shadow-sky-950/20'
+                    : 'bg-slate-950/60 border-slate-800/80'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h4 className="font-display font-semibold text-sm text-slate-100 truncate">
+                        {evt.title}
+                      </h4>
+                      <CopyButton text={copyText} size="xs" title="Copy event details" className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
 
-                  <div className="flex items-center gap-4 text-xs font-mono-code text-slate-400">
-                    <span className="flex items-center gap-1.5 text-sky-300 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-sky-400" />
-                      {evt.startTime} - {evt.endTime} ({evt.durationMinutes}m)
-                    </span>
+                    <div className="flex items-center gap-4 text-xs font-mono-code text-slate-400">
+                      <span className="flex items-center gap-1.5 text-sky-300 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-sky-400" />
+                        {evt.startTime} - {evt.endTime} ({evt.durationMinutes}m)
+                      </span>
 
-                    <span className="px-2 py-0.5 rounded bg-slate-900 text-indigo-300 border border-slate-800">
-                      {evt.calendarName}
-                    </span>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 text-indigo-300 border border-slate-800">
+                        {evt.calendarName}
+                      </span>
+                    </div>
+
+                    {evt.location && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-2 font-sans">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{evt.location}</span>
+                      </div>
+                    )}
+
+                    {evt.attendees && evt.attendees.length > 0 && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1 font-mono-code">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{evt.attendees.join(', ')}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {evt.location && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-2 font-sans">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{evt.location}</span>
-                    </div>
-                  )}
-
-                  {evt.attendees && evt.attendees.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1 font-mono-code">
-                      <Users className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{evt.attendees.join(', ')}</span>
-                    </div>
-                  )}
+                  <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-full bg-sky-950/40 text-sky-300 border border-sky-500/30 whitespace-nowrap shrink-0">
+                    Live record
+                  </span>
                 </div>
-
-                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded-full bg-sky-950/40 text-sky-300 border border-sky-500/30 whitespace-nowrap">
-                  Live record
-                </span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 
   return (
-    <div id="sylvia-calendar-panel" className="w-full h-full flex flex-col p-6 overflow-y-auto select-none">
+    <div id="sylvia-calendar-panel" className="w-full h-full flex flex-col p-6 overflow-y-auto select-text">
       <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-sky-950/60 border border-sky-500/40 flex items-center justify-center text-sky-400 shadow-lg shadow-sky-950/30">

@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   ArrowUpRight,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface ChatPanelProps {
   messages: ChatItem[];
@@ -36,10 +37,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [messages]);
 
   const renderToolCard = (tool: ToolExecution) => {
+    const copyContent = `${tool.toolName}: ${tool.action}`;
     return (
-      <div className="mt-2.5 p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono-code">
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+      <div className="mt-2.5 p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono-code select-text">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-6 h-6 rounded bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
             {tool.toolName === 'GMAIL' && <Mail className="w-3.5 h-3.5" />}
             {tool.toolName === 'MISSION' && <GitBranch className="w-3.5 h-3.5" />}
             {tool.toolName === 'MEMORY' && <Brain className="w-3.5 h-3.5" />}
@@ -47,13 +49,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="font-semibold text-slate-200">{tool.toolName}</div>
-            <div className="text-[11px] text-slate-400 font-sans">{tool.action}</div>
+            <div className="text-[11px] text-slate-400 font-sans truncate">{tool.action}</div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[11px]">
+        <div className="flex items-center gap-2 text-[11px] shrink-0">
           {tool.status === 'completed' && (
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -72,6 +74,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               Executing
             </span>
           )}
+          <CopyButton text={copyContent} size="xs" title="Copy tool action" />
         </div>
       </div>
     );
@@ -79,7 +82,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const renderApprovalCard = (appr: ApprovalRequest) => {
     return (
-      <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-amber-950/40 via-slate-900/90 to-slate-950 border border-amber-500/40 shadow-xl shadow-amber-950/20 text-xs">
+      <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-br from-amber-950/40 via-slate-900/90 to-slate-950 border border-amber-500/40 shadow-xl shadow-amber-950/20 text-xs select-text">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-500/20">
           <div className="flex items-center gap-2 text-amber-300 font-display font-bold tracking-wide">
             <ShieldAlert className="w-4 h-4 text-amber-400" />
@@ -94,20 +97,30 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         {appr.recipient && (
           <div className="mb-2 p-2 rounded bg-slate-950/60 border border-slate-800 font-mono-code text-[11px] space-y-1">
-            <div className="text-slate-400">
-              <span className="text-indigo-300">Recipient:</span> {appr.recipient}
+            <div className="text-slate-400 flex items-center justify-between">
+              <div>
+                <span className="text-indigo-300">Recipient:</span> {appr.recipient}
+              </div>
+              <CopyButton text={appr.recipient} size="xs" title="Copy recipient email" />
             </div>
             {appr.subject && (
-              <div className="text-slate-300">
-                <span className="text-indigo-300">Subject:</span> {appr.subject}
+              <div className="text-slate-300 flex items-center justify-between">
+                <div>
+                  <span className="text-indigo-300">Subject:</span> {appr.subject}
+                </div>
+                <CopyButton text={appr.subject} size="xs" title="Copy subject line" />
               </div>
             )}
           </div>
         )}
 
         {appr.bodyPreview && (
-          <div className="mb-3 p-2.5 rounded bg-slate-950/80 border border-slate-800 text-slate-300 text-[11px] font-sans whitespace-pre-line leading-relaxed">
-            {appr.bodyPreview}
+          <div className="relative group mb-3 p-2.5 rounded bg-slate-950/80 border border-slate-800 text-slate-300 text-[11px] font-sans whitespace-pre-line leading-relaxed select-text">
+            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800/80 text-[10px] text-slate-400 font-mono-code">
+              <span>Draft Preview</span>
+              <CopyButton text={appr.bodyPreview} label="Copy draft" showLabel size="xs" />
+            </div>
+            <div>{appr.bodyPreview}</div>
           </div>
         )}
 
@@ -142,6 +155,62 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     );
   };
 
+  const renderMessageContent = (text: string) => {
+    // If text has code blocks enclosed in ```
+    if (text.includes('```')) {
+      const parts = text.split(/(```[\s\S]*?```)/g);
+      return (
+        <div className="space-y-2 select-text font-sans">
+          {parts.map((part, index) => {
+            if (part.startsWith('```') && part.endsWith('```')) {
+              const content = part.slice(3, -3);
+              const firstNewline = content.indexOf('\n');
+              let language = '';
+              let code = content;
+              if (firstNewline !== -1) {
+                language = content.slice(0, firstNewline).trim();
+                code = content.slice(firstNewline + 1);
+              }
+              return (
+                <div
+                  key={index}
+                  className="my-2 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950/95 shadow-lg"
+                >
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/90 border-b border-slate-800/80 text-[11px] font-mono-code text-slate-400">
+                    <span className="font-semibold text-emerald-400">{language || 'code'}</span>
+                    <CopyButton text={code.trimEnd()} label="Copy code" showLabel size="xs" />
+                  </div>
+                  <pre className="p-3 text-[11px] font-mono-code overflow-x-auto text-emerald-300 select-text leading-relaxed">
+                    <code>{code}</code>
+                  </pre>
+                </div>
+              );
+            }
+            return (
+              <div key={index} className="whitespace-pre-line leading-relaxed select-text">
+                {part.split('\n\n').map((paragraph, pIdx) => (
+                  <p key={pIdx} className={pIdx > 0 ? 'mt-2' : ''}>
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="whitespace-pre-line font-sans select-text leading-relaxed">
+        {text.split('\n\n').map((paragraph, idx) => (
+          <p key={idx} className={idx > 0 ? 'mt-2' : ''}>
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={scrollRef}
@@ -159,9 +228,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+              className={`flex flex-col group ${isUser ? 'items-end' : 'items-start'}`}
             >
-              {/* Sender Tag */}
+              {/* Sender Tag & Actions */}
               <div className="flex items-center gap-2 mb-1 px-1">
                 {isUser ? (
                   <span className="text-[11px] font-mono-code text-slate-400 flex items-center gap-1">
@@ -179,23 +248,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </span>
                 )}
                 <span className="text-[10px] text-slate-400 font-mono-code">{msg.timestamp}</span>
+
+                {/* Quick 1-click Copy Message Button */}
+                <CopyButton
+                  text={msg.text}
+                  size="xs"
+                  title="Copy full message"
+                  className="opacity-60 group-hover:opacity-100 transition-opacity"
+                />
               </div>
 
               {/* Message Bubble */}
               <div
-                className={`max-w-xl p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed ${
+                className={`max-w-xl p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed relative select-text ${
                   isUser
                     ? 'bg-indigo-600/30 text-slate-100 border border-indigo-500/40 rounded-tr-sm shadow-md'
                     : 'glass-panel-elevated text-slate-200 border-slate-800 rounded-tl-sm shadow-xl'
                 }`}
               >
-                <div className="whitespace-pre-line font-sans">
-                  {msg.text.split('\n\n').map((paragraph, idx) => (
-                    <p key={idx} className={idx > 0 ? 'mt-2' : ''}>
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
+                {renderMessageContent(msg.text)}
 
                 {/* Render Attached Tool Card */}
                 {msg.toolExecution && renderToolCard(msg.toolExecution)}

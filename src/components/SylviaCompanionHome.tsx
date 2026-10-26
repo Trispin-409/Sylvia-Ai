@@ -7,6 +7,7 @@ import {
 import { ApprovalRequest, BackendHealth, ChatItem, NavView, SylviaState } from '../types';
 import { DotPal, cleanCustom, registerCustom, type CustomPal } from 'dotpals';
 import { SylviaDotPal, type SylviaPalAgentState } from './SylviaDotPal';
+import { CopyButton } from './CopyButton';
 
 interface SylviaCompanionHomeProps {
   activeView: NavView;
@@ -455,9 +456,22 @@ export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
             {recentMessages.length > 0 ? (
               <div className="space-y-2">
                 {recentMessages.map(message => (
-                  <div key={message.id} className="rounded-xl border border-white/[0.05] bg-black/15 px-3 py-2.5">
-                    <div className="mb-1 flex items-center justify-between gap-3"><span className={'text-[10px] font-semibold ' + (message.sender === 'user' ? 'text-slate-400' : 'text-indigo-200')}>{message.sender === 'user' ? 'YOU' : message.specialistName || 'SYLVIA'}</span><span className="text-[10px] text-slate-600">{message.timestamp}</span></div>
-                    <p className="line-clamp-3 whitespace-pre-line break-words text-xs leading-5 text-slate-300">{message.text.replace(/\*\*/g, '').replace(/\x60/g, '').slice(0, 350)}</p>
+                  <div key={message.id} className="group rounded-xl border border-white/[0.05] bg-black/15 px-3 py-2.5 select-text">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className={'text-[10px] font-semibold ' + (message.sender === 'user' ? 'text-slate-400' : 'text-indigo-200')}>
+                        {message.sender === 'user' ? 'YOU' : message.specialistName || 'SYLVIA'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500">{message.timestamp}</span>
+                        <CopyButton
+                          text={message.text}
+                          size="xs"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Copy message text"
+                        />
+                      </div>
+                    </div>
+                    <p className="line-clamp-3 whitespace-pre-line break-words text-xs leading-5 text-slate-300 select-text">{message.text.replace(/\*\*/g, '').replace(/\x60/g, '').slice(0, 350)}</p>
                     {message.approvalRequest && message.approvalRequest.status === 'WAITING' && <button type="button" onClick={() => onOpenWorkspace('chat')} className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-amber-200">Review approval <ChevronRight className="h-3 w-3" /></button>}
                   </div>
                 ))}

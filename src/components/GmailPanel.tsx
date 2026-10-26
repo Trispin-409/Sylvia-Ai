@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   XCircle,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface GmailPanelProps {
   messages: GmailMessage[];
@@ -40,7 +41,7 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
   }, [messages]);
 
   return (
-    <div id="sylvia-gmail-panel" className="w-full h-full flex flex-col p-6 overflow-hidden select-none">
+    <div id="sylvia-gmail-panel" className="w-full h-full flex flex-col p-6 overflow-hidden select-text">
       <div className="flex items-center justify-between pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-rose-950/60 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-950/30">
@@ -68,13 +69,16 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
       </div>
 
       {workspaceHealth?.gmailEmail && (
-        <div className="mt-3 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] font-mono-code text-slate-400">
-          Live Workspace account: <span className="text-slate-200">{workspaceHealth.gmailEmail}</span>
+        <div className="mt-3 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] font-mono-code text-slate-400 flex items-center justify-between">
+          <div>
+            Live Workspace account: <span className="text-slate-200">{workspaceHealth.gmailEmail}</span>
+          </div>
+          <CopyButton text={workspaceHealth.gmailEmail} size="xs" title="Copy account email" />
         </div>
       )}
 
       {gmailApprovals.length > 0 && (
-        <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-950 border border-amber-500/50 shadow-xl">
+        <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-950 border border-amber-500/50 shadow-xl select-text">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-amber-300 font-display font-bold text-sm">
               <ShieldAlert className="w-4 h-4 text-amber-400" />
@@ -109,10 +113,13 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
               <div className="text-[11px] text-slate-600 mt-2 max-w-xs">Ask Sylvia to read your Gmail. This panel does not use fabricated inbox messages.</div>
             </div>
           ) : messages.map(msg => (
-            <div key={msg.id} onClick={() => setSelectedMessage(msg)} className={`p-3.5 rounded-xl border transition-all cursor-pointer ${selectedMessage?.id === msg.id ? 'glass-panel-elevated border-rose-500/40 shadow-lg shadow-rose-950/20' : 'bg-slate-950/50 border-slate-800/80 hover:bg-slate-900/60'}`}>
+            <div key={msg.id} onClick={() => setSelectedMessage(msg)} className={`p-3.5 rounded-xl border transition-all cursor-pointer group select-text ${selectedMessage?.id === msg.id ? 'glass-panel-elevated border-rose-500/40 shadow-lg shadow-rose-950/20' : 'bg-slate-950/50 border-slate-800/80 hover:bg-slate-900/60'}`}>
               <div className="flex items-center justify-between mb-1">
                 <span className={`font-semibold text-xs truncate ${msg.unread ? 'text-slate-100' : 'text-slate-300'}`}>{msg.sender}</span>
-                <span className="text-[10px] font-mono-code text-slate-400">{msg.date}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono-code text-slate-400">{msg.date}</span>
+                  <CopyButton text={`${msg.subject}\nFrom: ${msg.sender} <${msg.senderEmail}>\n\n${msg.body || msg.preview}`} size="xs" title="Copy email snippet" className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </div>
               <div className={`text-xs truncate ${msg.unread ? 'text-slate-200 font-medium' : 'text-slate-400'}`}>{msg.subject}</div>
               <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 font-sans">{msg.preview}</p>
@@ -121,21 +128,37 @@ export const GmailPanel: React.FC<GmailPanelProps> = ({
           ))}
         </div>
 
-        <div className="md:col-span-7 flex flex-col glass-panel-elevated p-5 rounded-2xl border border-slate-800 overflow-y-auto">
+        <div className="md:col-span-7 flex flex-col glass-panel-elevated p-5 rounded-2xl border border-slate-800 overflow-y-auto select-text">
           {selectedMessage ? (
             <div className="space-y-4">
               <div className="border-b border-slate-800 pb-3">
                 <div className="flex items-center justify-between gap-4">
                   <h3 className="text-base font-display font-bold text-slate-100">{selectedMessage.subject}</h3>
-                  <span className="text-[11px] font-mono-code text-slate-400">{selectedMessage.date}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono-code text-slate-400">{selectedMessage.date}</span>
+                    <CopyButton text={`${selectedMessage.subject}\nFrom: ${selectedMessage.sender} <${selectedMessage.senderEmail}>\n\n${selectedMessage.body || selectedMessage.preview}`} label="Copy all" showLabel size="xs" title="Copy full email" />
+                  </div>
                 </div>
-                <div className="mt-2 text-xs font-mono-code text-slate-400 flex flex-wrap items-center gap-2">
-                  <span className="text-indigo-300">From:</span><span className="text-slate-200 font-medium">{selectedMessage.sender}</span><span className="text-slate-400">&lt;{selectedMessage.senderEmail}&gt;</span>
+                <div className="mt-2 text-xs font-mono-code text-slate-400 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-indigo-300">From:</span><span className="text-slate-200 font-medium">{selectedMessage.sender}</span><span className="text-slate-400">&lt;{selectedMessage.senderEmail}&gt;</span>
+                  </div>
+                  <CopyButton text={selectedMessage.senderEmail} size="xs" title="Copy sender email address" />
                 </div>
-                {selectedMessage.id && <div className="mt-1 text-[10px] font-mono-code text-slate-600">Gmail Message ID: {selectedMessage.id}</div>}
+                {selectedMessage.id && (
+                  <div className="mt-1 text-[10px] font-mono-code text-slate-600 flex items-center justify-between">
+                    <span>Gmail Message ID: {selectedMessage.id}</span>
+                    <CopyButton text={selectedMessage.id} size="xs" title="Copy Message ID" />
+                  </div>
+                )}
               </div>
 
-              <div className="py-2 text-xs md:text-sm text-slate-200 leading-relaxed font-sans whitespace-pre-line">{selectedMessage.body || selectedMessage.preview}</div>
+              <div className="relative group">
+                <div className="flex justify-end mb-1">
+                  <CopyButton text={selectedMessage.body || selectedMessage.preview} label="Copy body" showLabel size="xs" title="Copy message text" />
+                </div>
+                <div className="py-2 text-xs md:text-sm text-slate-200 leading-relaxed font-sans whitespace-pre-line select-text">{selectedMessage.body || selectedMessage.preview}</div>
+              </div>
 
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
                 <div className="flex items-center gap-2 text-indigo-300 font-mono-code text-xs font-semibold"><Sparkles className="w-4 h-4 text-indigo-400" />Sylvia Intelligence Assessment</div>

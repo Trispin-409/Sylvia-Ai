@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { SylviaState } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface StarFieldProps {
   sylviaState: SylviaState;
@@ -30,6 +31,7 @@ interface ShootingStar {
 
 export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { currentTheme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,13 +56,12 @@ export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
     let stars: Star[] = [];
     const shootingStars: ShootingStar[] = [];
 
-    const colors = [
+    const colors = currentTheme.starColors || [
       '#ffffff',
-      '#e0e7ff', // soft indigo
-      '#c7d2fe', // lilac
-      '#a5b4fc', // violet
-      '#bae6fd', // light cyan
-      '#fbcfe8', // faint rose
+      '#e0e7ff',
+      '#c7d2fe',
+      '#a5b4fc',
+      '#bae6fd',
     ];
 
     const initStars = () => {
@@ -117,7 +118,7 @@ export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
 
       bgGradient.addColorStop(0, centerNebula);
       bgGradient.addColorStop(0.5, midNebula);
-      bgGradient.addColorStop(1, '#030712');
+      bgGradient.addColorStop(1, currentTheme.bgBase || '#030712');
 
       ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, width, height);
@@ -201,8 +202,8 @@ export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
 
         const grad = ctx.createLinearGradient(ss.x, ss.y, tailX, tailY);
         grad.addColorStop(0, `rgba(255, 255, 255, ${ss.opacity})`);
-        grad.addColorStop(0.3, `rgba(165, 180, 252, ${ss.opacity * 0.7})`);
-        grad.addColorStop(1, 'rgba(99, 102, 241, 0)');
+        grad.addColorStop(0.3, `${currentTheme.borderAccent}`);
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
         ctx.beginPath();
         ctx.moveTo(ss.x, ss.y);
@@ -210,7 +211,7 @@ export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
         ctx.strokeStyle = grad;
         ctx.lineWidth = 1.6;
         ctx.shadowBlur = 8;
-        ctx.shadowColor = '#818cf8';
+        ctx.shadowColor = currentTheme.primaryColor;
         ctx.globalAlpha = ss.opacity;
         ctx.stroke();
 
@@ -230,7 +231,7 @@ export const StarField: React.FC<StarFieldProps> = ({ sylviaState }) => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [sylviaState]);
+  }, [sylviaState, currentTheme]);
 
   return (
     <canvas

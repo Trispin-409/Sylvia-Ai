@@ -1,6 +1,7 @@
 import React from 'react';
 import { ApprovalRequest } from '../types';
 import { ShieldAlert, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface ApprovalCardProps {
   request: ApprovalRequest;
@@ -29,36 +30,66 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ request, onApprove, 
     onCancel(request.id);
   };
 
+  const fullDraftCopy = [
+    request.description,
+    request.recipient ? `Recipient: ${request.recipient}` : null,
+    request.subject ? `Subject: ${request.subject}` : null,
+    request.bodyPreview ? `\n${request.bodyPreview}` : null,
+  ].filter(Boolean).join('\n');
+
   return (
     <div
       id={`approval-card-${request.id}`}
-      className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-slate-950 border border-amber-500/50 shadow-2xl shadow-amber-950/30 text-xs select-none"
+      className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-slate-950 border border-amber-500/50 shadow-2xl shadow-amber-950/30 text-xs select-text"
     >
       <div className="flex items-center justify-between pb-3 border-b border-amber-500/20 mb-3">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-5 h-5 text-amber-400" />
           <div>
             <h4 className="font-display font-bold text-sm text-amber-200">HUMAN APPROVAL REQUIRED</h4>
-            <div className="text-[10px] font-mono-code text-slate-400">Action Gate ID: {request.id}</div>
+            <div className="text-[10px] font-mono-code text-slate-400 flex items-center gap-1.5">
+              <span>Action Gate ID: {request.id}</span>
+              <CopyButton text={request.id} size="xs" title="Copy Action Gate ID" />
+            </div>
           </div>
         </div>
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-          {request.riskLevel} RISK WRITE ACTION
-        </span>
+        <div className="flex items-center gap-2">
+          <CopyButton
+            text={fullDraftCopy}
+            label="Copy Draft"
+            showLabel
+            size="xs"
+            title="Copy draft content"
+          />
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+            {request.riskLevel} RISK WRITE ACTION
+          </span>
+        </div>
       </div>
 
-      <p className="text-slate-200 font-sans text-xs mb-3 leading-relaxed">{request.description}</p>
+      <p className="text-slate-200 font-sans text-xs mb-3 leading-relaxed select-text">{request.description}</p>
 
       {request.recipient && (
         <div className="mb-3 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 font-mono-code text-[11px] space-y-1">
-          <div className="text-slate-400"><span className="text-indigo-400 font-semibold">Recipient:</span> {request.recipient}</div>
-          {request.subject && <div className="text-slate-200"><span className="text-indigo-400 font-semibold">Subject:</span> {request.subject}</div>}
+          <div className="text-slate-400 flex items-center justify-between">
+            <div><span className="text-indigo-400 font-semibold">Recipient:</span> <span className="select-text text-slate-200">{request.recipient}</span></div>
+            <CopyButton text={request.recipient} size="xs" title="Copy recipient" />
+          </div>
+          {request.subject && (
+            <div className="text-slate-200 flex items-center justify-between">
+              <div><span className="text-indigo-400 font-semibold">Subject:</span> <span className="select-text">{request.subject}</span></div>
+              <CopyButton text={request.subject} size="xs" title="Copy subject" />
+            </div>
+          )}
         </div>
       )}
 
       {request.bodyPreview && (
-        <div className="mb-4 p-3 rounded-xl bg-slate-950/90 border border-slate-800 text-slate-300 text-xs font-sans whitespace-pre-line leading-relaxed">
-          {request.bodyPreview}
+        <div className="relative mb-4 p-3 rounded-xl bg-slate-950/90 border border-slate-800 text-slate-300 text-xs font-sans whitespace-pre-line leading-relaxed group">
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <CopyButton text={request.bodyPreview} size="xs" title="Copy body preview" />
+          </div>
+          <div className="select-text pr-6">{request.bodyPreview}</div>
         </div>
       )}
 

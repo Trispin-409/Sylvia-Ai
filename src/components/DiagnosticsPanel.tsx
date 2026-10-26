@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Cpu,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface DiagnosticsPanelProps {
   isOpen: boolean;
@@ -44,6 +45,18 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   };
 
   const workspace = health.workspace;
+  const diagnosticsReport = JSON.stringify(
+    {
+      backendUrl: health.backendUrl,
+      connected: health.connected,
+      latencyMs: health.latencyMs,
+      workspace: health.workspace,
+      agentCard: agentCard,
+      timestamp: new Date().toISOString(),
+    },
+    null,
+    2
+  );
 
   return (
     <AnimatePresence>
@@ -53,7 +66,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            className="w-full max-w-2xl glass-panel-elevated p-6 rounded-2xl border border-indigo-500/30 max-h-[85vh] overflow-y-auto select-none"
+            className="w-full max-w-2xl glass-panel-elevated p-6 rounded-2xl border border-indigo-500/30 max-h-[85vh] overflow-y-auto select-text"
           >
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -65,9 +78,18 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
                   <p className="text-xs text-slate-400 font-mono-code">Live backend and Workspace evidence</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <CopyButton
+                  text={diagnosticsReport}
+                  label="Copy JSON"
+                  showLabel
+                  size="xs"
+                  title="Copy full telemetry JSON"
+                />
+                <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-5">
@@ -105,6 +127,11 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
                   onChange={e => setUrlInput(e.target.value)}
                   placeholder="https://sylvia-agent-...run.app"
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 text-xs outline-none focus:border-indigo-500 font-mono-code"
+                />
+                <CopyButton
+                  text={urlInput}
+                  size="sm"
+                  title="Copy API Base URL"
                 />
                 <button
                   onClick={handleApplyUrl}

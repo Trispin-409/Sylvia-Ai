@@ -1,175 +1,1625 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Award, BookOpen, Brain, BriefcaseBusiness, CheckCircle2, CircleAlert, Compass, GraduationCap, LoaderCircle, Target, Plus, Save, ShieldCheck, Sparkles, Trash2, Upload } from 'lucide-react';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
-import * as mammoth from 'mammoth';
+import React, { useState, useEffect } from 'react';
+import {
+  Briefcase,
+  Search,
+  MapPin,
+  FileText,
+  Pencil,
+  Lock,
+  GraduationCap,
+  Play,
+  MessageSquare,
+  Code,
+  BookOpen,
+  PieChart,
+  RotateCw,
+  Mic,
+  ArrowRight,
+  ClipboardList,
+  Plus,
+  Milestone,
+  Flag,
+  CheckCircle2,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  X,
+  ExternalLink,
+  Sparkles,
+  AlertCircle,
+  Copy,
+  Trash2,
+  Sliders,
+  Send,
+  LoaderCircle,
+} from 'lucide-react';
 import { ToolExecution } from '../types';
-import { SylviaDotPal } from './SylviaDotPal';
+import { SkillGapRadarChart, ROLE_BENCHMARKS, TargetRoleBenchmark } from './SkillGapRadarChart';
 
-type Tab = 'profile' | 'portfolio' | 'opportunities';
-type Source = 'Self-reported' | 'Inferred from evidence' | 'Demonstrated in task' | 'Externally verified';
-type Skill = { id: string; name: string; source: Source; evidence: string };
-type Certificate = { id: string; title: string; issuer: string; filename: string; status: string; extractedText?: string };
-type Artifact = { id: string; challenge: string; role: string; work: string; feedback: string; status: string; updatedAt: string };
-type Profile = { name: string; stage: string; education: string; target: string; area: string; experience: string; strengths: string; barriers: string[]; skills: Skill[]; certificates: Certificate[]; artifacts: Artifact[] };
-type Result = { reply: string; toolExecutions: ToolExecution[] };
-type Report = { summary?: string; skills?: Array<{name:string;evidence:string;proofTask:string}>; rolePaths?: Array<{role:string;why:string;missingProof?:string[]}>; gaps?: Array<string|{gap?:string;reason?:string;nextStep?:string}>; readinessSummary?:string; barrierForecast?:{risk?:string;signals?:string[];mitigation?:string;confidence?:string}; nextSteps?:Array<string|{title?:string;reason?:string}>; verificationNeeded?:string[]; evidenceMatches?:Array<{requirement:string;evidence:string;status?:string}>; transferableSkills?:Array<{skill:string;evidence:string}>; applicationSteps?:string[] };
-type Challenge = { id:string; title:string; role:string; scenario:string; task:string; rubric:string[]; skills:string[] };
-interface Props { backendConnected:boolean; isWorking:boolean; onAnalyze:(prompt:string)=>Promise<Result|null>; onOpenConversation:()=>void; onOpenMissionControl:()=>void; }
-
-const STORAGE_KEY = 'sylvia-career-workspace-v1';
-const LIMIT = 10000;
-const challenges: Challenge[] = [
- {id:'retail',title:'Stock control mini-project',role:'Retail assistant',scenario:'A shop starts with 24 rice packets, 18 oil bottles and 30 soap bars. It sells 7 rice packets, 5 oil bottles and 12 soap bars. Each product should have at least 10 units at closing.',task:'Create a table showing opening stock, sold, closing stock and reorder decision. Explain how to avoid counting mistakes.',rubric:['Calculations are correct.','The table is clear and easy to check.','Reorder decision follows the minimum-stock rule.'],skills:['Stock control','Attention to detail','Basic numeracy']},
- {id:'service',title:'Customer-service scenario',role:'Customer service',scenario:'A customer says they were charged twice for one purchase and wants an immediate refund, but you cannot approve refunds yourself.',task:'Write your response. Describe what you would verify, the next two steps and how you would keep the customer informed.',rubric:['Acknowledges the concern respectfully.','Does not promise an unauthorised refund.','Provides practical next steps.'],skills:['Customer communication','Problem-solving','Professional judgement']},
- {id:'admin',title:'Office planning task',role:'Administrator',scenario:'You must answer an urgent query by 10:00, file 12 delivery notes, prepare a 14:00 agenda, update a contact list and order printer paper before close.',task:'Create a realistic priority plan and explain how you would track completion for a teammate.',rubric:['Prioritises time-sensitive work.','Plan is realistic.','Tracking is clear to a teammate.'],skills:['Planning','Written communication','Digital administration']}
-];
-const blankProfile = ():Profile => ({name:'',stage:'Looking for my first opportunity',education:'',target:'',area:'',experience:'',strengths:'',barriers:[],skills:[],certificates:[],artifacts:[]});
-const id = (prefix:string) => prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
-function loadProfile():Profile { try { const raw=window.localStorage.getItem(STORAGE_KEY); if(!raw)return blankProfile(); const v=JSON.parse(raw) as Partial<Profile>; return {...blankProfile(),...v,skills:Array.isArray(v.skills)?v.skills:[],certificates:Array.isArray(v.certificates)?v.certificates:[],artifacts:Array.isArray(v.artifacts)?v.artifacts:[],barriers:Array.isArray(v.barriers)?v.barriers:[]}; } catch { return blankProfile(); } }
-function parseReport(text:string):Report|null { const a=text.indexOf('{'); const b=text.lastIndexOf('}'); if(a<0||b<=a)return null; try{return JSON.parse(text.slice(a,b+1)) as Report;}catch{return null;} }
-async function readDocument(file:File):Promise<string> {
- if(file.size>8*1024*1024)throw new Error('Choose a document smaller than 8 MB.');
- const ext=(file.name.split('.').pop()||'').toLowerCase();
- if(['txt','md','csv'].includes(ext))return (await file.text()).slice(0,LIMIT).trim();
- if(ext==='docx'){const out=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});return String(out.value||'').slice(0,LIMIT).trim();}
- if(ext==='pdf'){pdfjsLib.GlobalWorkerOptions.workerSrc=pdfWorkerUrl;const task=pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())});const pdf=await task.promise;const lines:string[]=[];for(let n=1;n<=Math.min(pdf.numPages,10);n++){const p=await pdf.getPage(n);const c=await p.getTextContent();lines.push(c.items.map(item=>('str'in item&&typeof item.str==='string')?item.str:'').filter(Boolean).join(' '));if(lines.join('\n').length>LIMIT)break;}const text=lines.join('\n\n').slice(0,LIMIT).trim();await task.destroy();return text;}
- throw new Error('Supported formats: PDF, DOCX, TXT, MD and CSV. Scanned PDFs require manual text entry.');
+interface CareerBridgeWorkspaceProps {
+  backendConnected: boolean;
+  isWorking: boolean;
+  onAnalyze: (prompt: string) => Promise<{ reply: string; toolExecutions: ToolExecution[] } | null>;
+  onOpenConversation: () => void;
+  onOpenMissionControl: () => void;
+  onReturnToCompanion?: () => void;
+  onNavigateToView?: (view: any) => void;
 }
-function persistentSaveConfirmed(tools:ToolExecution[]):boolean{return tools.some(t=>{const d=t.details as Record<string,unknown>|undefined;const m=d?.memory as Record<string,unknown>|undefined;return t.toolName==='MEMORY'&&t.status==='completed'&&d?.persistent===true&&(d.saved===true||d.exists===true)&&String(m?.category||'').toLowerCase()==='career';});}
-const field='mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100';
-const card='rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5';
-const primary='inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50';
-const secondary='inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-50';
 
-export const CareerBridgeWorkspace:React.FC<Props> = ({backendConnected,isWorking,onAnalyze,onOpenConversation,onOpenMissionControl}) => {
- const [profile,setProfile]=useState<Profile>(loadProfile);
- const [tab,setTab]=useState<Tab>('profile');
- const [cv,setCv]=useState(''); const [cvName,setCvName]=useState('');
- const [busyFile,setBusyFile]=useState(false); const [message,setMessage]=useState(''); const [error,setError]=useState('');
- const [profileText,setProfileText]=useState(''); const [profileReport,setProfileReport]=useState<Report|null>(null);
- const [vacancyTitle,setVacancyTitle]=useState(''); const [vacancySource,setVacancySource]=useState(''); const [vacancyDescription,setVacancyDescription]=useState(''); const [matchText,setMatchText]=useState(''); const [matchReport,setMatchReport]=useState<Report|null>(null);
- const [radarText,setRadarText]=useState(''); const [radar,setRadar]=useState<Report|null>(null);
- const [tools,setTools]=useState<ToolExecution[]>([]);
- const [consent,setConsent]=useState(false); const [saved,setSaved]=useState(false);
- const [skillName,setSkillName]=useState(''); const [skillEvidence,setSkillEvidence]=useState('');
- const [certName,setCertName]=useState(''); const [certIssuer,setCertIssuer]=useState('');
- const [challengeId,setChallengeId]=useState(challenges[0].id); const [work,setWork]=useState(''); const [feedback,setFeedback]=useState(''); const [workMessage,setWorkMessage]=useState('');
- const challenge=challenges.find(c=>c.id===challengeId)||challenges[0];
- const profileJson=useMemo(()=>JSON.stringify({stage:profile.stage,education:profile.education||'Not provided',targetRole:profile.target||'Not selected',area:profile.area||'Not provided',experience:profile.experience||'Not provided',cvText:cv.slice(0,7000)||'No CV text supplied',strengths:profile.strengths||'Not specified',barriers:profile.barriers,skills:profile.skills,certificates:profile.certificates.map(c=>({title:c.title,issuer:c.issuer,status:c.status,notes:'',extractedText:(c.extractedText||'').slice(0,1200)})),portfolio:profile.artifacts.map(a=>({title:a.challenge,role:a.role,status:a.status,work:a.work.slice(0,1800),feedback:a.feedback.slice(0,500)}))},null,2),[profile,cv]);
- const completedFields=[Boolean(profile.name.trim()),Boolean(profile.education.trim()),Boolean(profile.target.trim()),Boolean(profile.experience.trim()||cv.trim()),profile.skills.length>0,profile.certificates.length>0];
- const completion=Math.round(completedFields.filter(Boolean).length/completedFields.length*100);
- const reviewed=profile.artifacts.filter(a=>a.status!=='Draft saved').length;
- const completed=profile.artifacts.filter(a=>a.status==='Marked complete by you').length;
- useEffect(()=>{try{const safe={...profile,certificates:profile.certificates.map(c=>({id:c.id,title:c.title,issuer:c.issuer,filename:c.filename,status:c.status}))};window.localStorage.setItem(STORAGE_KEY,JSON.stringify(safe));}catch{setMessage('Could not save the local draft in this browser.');}},[profile]);
- const update=<K extends keyof Profile>(key:K,value:Profile[K])=>setProfile(p=>({...p,[key]:value}));
- const addSkill=(name:string,source:Source,evidence:string)=>{const clean=name.trim();if(!clean)return;if(profile.skills.some(s=>s.name.toLowerCase()===clean.toLowerCase())){setMessage('That skill is already in your Skill Passport.');return;}update('skills',[...profile.skills,{id:id('skill'),name:clean,source,evidence:evidence.trim()}]);setSkillName('');setSkillEvidence('');setMessage('Added '+clean+'.');};
- const handleFile=async(file:File|undefined,kind:'cv'|'certificate'|'work')=>{if(!file)return;setBusyFile(true);setError('');setMessage('');try{const text=await readDocument(file);if(!text)throw new Error('No selectable text found. The file may be scanned; add details manually.');if(kind==='cv'){setCv(text);setCvName(file.name);setMessage('CV text read locally. Review it before sending it to Sylvia.');}else if(kind==='certificate'){update('certificates',[...profile.certificates,{id:id('cert'),title:certName.trim()||file.name.replace(/\.[^.]+$/,''),issuer:certIssuer.trim(),filename:file.name,status:'Uploaded — not verified',extractedText:text}]);setCertName('');setCertIssuer('');setMessage('Certificate text was read locally; authenticity is not verified.');}else{setWork(text);setMessage('Work sample read locally.');}}catch(e){setError(e instanceof Error?e.message:'Could not read file.');}finally{setBusyFile(false);}};
- const addCertificate=()=>{if(!certName.trim()){setError('Enter a certificate or course name.');return;}update('certificates',[...profile.certificates,{id:id('cert'),title:certName.trim(),issuer:certIssuer.trim(),filename:'',status:'Details added — not verified'}]);setCertName('');setCertIssuer('');setMessage('Credential details added; not independently verified.');};
- const analyzeProfile=async()=>{if(!profile.experience.trim()&&!cv.trim()){setError('Add an experience example or read your CV before analysis.');setTab('profile');return;}setError('');setProfileText('');setProfileReport(null);const prompt=['SYLVIA CAREER BRIDGE — PROFILE AND SKILL PASSPORT ANALYSIS.','Treat supplied information as user-reported, not independently verified. Do not invent qualifications, employers, dates, certificates, achievements or jobs. Recognise informal work when tied to a real example. Do not update mission state during this analysis.','Return JSON only: {"summary":"string","skills":[{"name":"skill","evidence":"input evidence or reason for inference","proofTask":"small way to demonstrate"}],"rolePaths":[{"role":"entry-level role","why":"evidence-based fit","missingProof":["gap"]}],"gaps":[{"gap":"gap","reason":"why it matters","nextStep":"action"}]}. Recommend 3–8 skills and up to three role paths. No fake vacancy or job probability.','PROFILE JSON:',profileJson].join('\n');try{const r=await onAnalyze(prompt);if(!r)throw new Error('Sylvia did not return a backend response.');setProfileText(r.reply);setProfileReport(parseReport(r.reply));setTools(r.toolExecutions);setMessage(r.toolExecutions.length?'Profile report returned with backend tool activity; inspect trace before assuming anything was saved.':'Analysis returned without structured tool results.');}catch(e){setError(e instanceof Error?e.message:'Profile analysis failed.');}};
- const saveMemory=async()=>{if(!consent){setError('Select consent before saving your career profile.');return;}setSaved(false);const summary=JSON.stringify({name:profile.name||undefined,stage:profile.stage,education:profile.education||undefined,targetRole:profile.target||undefined,area:profile.area||undefined,experience:profile.experience.slice(0,1000)||undefined,skills:profile.skills.map(s=>({name:s.name,source:s.source,evidence:s.evidence.slice(0,250)})),certificates:profile.certificates.map(c=>({title:c.title,issuer:c.issuer,filename:c.filename,status:c.status})),barriers:profile.barriers,portfolio:profile.artifacts.map(a=>({title:a.challenge,role:a.role,status:a.status}))});const prompt=['SYLVIA CAREER BRIDGE — USER CONSENTED MEMORY SAVE.','The user explicitly opted in. Use actual save_context_memory tool with key CAREER_PROFILE, category career and permanence long_term. Save only the concise summary below; do not store raw CV/certificate text. Confirm persistence only from structured tool results.','SUMMARY:',summary].join('\n');try{const r=await onAnalyze(prompt);if(!r)throw new Error('No backend response; memory was not confirmed.');setTools(r.toolExecutions);const ok=persistentSaveConfirmed(r.toolExecutions);setSaved(ok);setMessage(ok?'Structured tool result confirms persistent career memory.':'Persistent memory was not confirmed by structured tool results.');}catch(e){setMessage(e instanceof Error?e.message:'Could not confirm memory save.');}};
- const saveWork=(status:string,fb=feedback)=>{if(!work.trim()){setWorkMessage('Write your response before saving.');return;}const old=profile.artifacts.find(a=>a.challenge===challenge.title);const item:Artifact={id:old?.id||id('work'),challenge:challenge.title,role:challenge.role,work:work.trim().slice(0,LIMIT),feedback:fb,status,updatedAt:new Date().toISOString()};update('artifacts',[item,...profile.artifacts.filter(a=>a.challenge!==challenge.title)]);};
- const reviewWork=async()=>{if(!work.trim()){setWorkMessage('Write your answer or attach a sample first.');return;}setError('');setFeedback('');const prompt=['SYLVIA CAREER BRIDGE — PORTFOLIO TASK REVIEW.','Evaluate only against the scenario and rubric. Give specific feedback and improvements. This is a learning simulation, not an internship or external credential. Return JSON only: {"overall":"short assessment","rubric":[{"criterion":"criterion","status":"meets|partly_meets|needs_work","evidence":"evidence from answer"}],"strengths":["strength"],"improvements":["improvement"],"nextPractice":"small task"}. Do not invent a score.','TASK:',JSON.stringify({title:challenge.title,role:challenge.role,scenario:challenge.scenario,task:challenge.task,rubric:challenge.rubric}),'USER WORK:',work.slice(0,LIMIT)].join('\n');try{const r=await onAnalyze(prompt);if(!r)throw new Error('No feedback returned.');setTools(r.toolExecutions);setFeedback(r.reply);saveWork('Feedback received',r.reply);setWorkMessage('AI coaching received; it is not external verification.');}catch(e){setWorkMessage(e instanceof Error?e.message:'Feedback failed; save a draft and retry.');}};
- const addChallengeSkills=()=>{const missing=challenge.skills.filter(name=>!profile.skills.some(s=>s.name.toLowerCase()===name.toLowerCase()));if(!missing.length){setMessage('These skills are already in your passport.');setTab('profile');return;}update('skills',[...profile.skills,...missing.map(name=>({id:id('skill'),name,source:'Demonstrated in task' as Source,evidence:challenge.title+' submitted in this workspace; not externally verified.'}))]);setMessage('Added '+missing.length+' task-linked skills; not externally verified.');setTab('profile');};
- const compareVacancy=async()=>{
-  if(!vacancyDescription.trim()){setError('Paste the vacancy description before comparing.');return;}
-  if(!profile.experience.trim()&&!cv.trim()&&profile.skills.length===0){setError('Add at least one experience example, CV text or Skill Passport entry first.');setTab('profile');return;}
-  setError('');setMatchText('');setMatchReport(null);
-  const prompt=[
-   'SYLVIA CAREER BRIDGE — EVIDENCE-BASED ENTRY-LEVEL VACANCY COMPARISON.',
-   'Compare the user profile to the supplied vacancy only. Do not search for or fabricate vacancies, employers, live status, recruiter contact details, salary, requirements or dates. The optional URL is supplied by the user and has not been verified by this UI.',
-   'Do not return a fit score or job-placement probability. Distinguish supported evidence, partial matches, and requirements with no evidence. A transferable skill must point to a user-provided example or be clearly marked inferred. Identify must-have requirements, practical gaps, honest application steps, and facts that need checking from the original employer source.',
-   'Return valid JSON only: {"summary":"plain-language evidence-based comparison","evidenceMatches":[{"requirement":"requirement from pasted advert","evidence":"specific supporting profile evidence or state no evidence supplied","status":"supported|partial|not evidenced"}],"transferableSkills":[{"skill":"skill","evidence":"specific supplied example and what needs proving"}],"gaps":[{"gap":"gap","reason":"why it matters","nextStep":"practical next action"}],"applicationSteps":["concrete action"],"verificationNeeded":["fact to verify before applying"]}.',
-   'VACANCY TITLE:',vacancyTitle||'Not supplied',
-   'USER-SUPPLIED SOURCE URL:',vacancySource||'Not supplied',
-   'PASTED VACANCY TEXT:',vacancyDescription.slice(0,8500),
-   'USER PROFILE AND EXISTING EVIDENCE:',profileJson
-  ].join('\n');
-  try{const result=await onAnalyze(prompt);if(!result)throw new Error('Sylvia did not return a role comparison. Check the backend connection and retry.');setMatchText(result.reply);setMatchReport(parseReport(result.reply));setTools(result.toolExecutions);setMessage(result.toolExecutions.length?'Role comparison returned with backend tool activity.':'Role comparison returned without structured tool activity; no remote record is implied.');}
-  catch(e){setError(e instanceof Error?e.message:'Role comparison failed.');}
- };
- const runRadar=async()=>{if(!profile.target.trim()){setError('Choose a target role first.');setTab('profile');return;}setError('');setRadarText('');setRadar(null);const prompt=['SYLVIA CAREER BRIDGE — EXPLAINABLE READINESS RADAR.','Guidance only, not a hiring decision. Never invent job-placement probability or unsupported percentages. Identify evidence, gaps, one likely near-term blocker based only on stated barriers or unfinished tasks, actual signals, uncertainty, mitigation, next actions and needs for external verification. If history is insufficient, label preliminary.','Return JSON only: {"readinessSummary":"short explanation","gaps":[{"gap":"gap","reason":"why","nextStep":"action"}],"barrierForecast":{"risk":"likely blocker","signals":["actual inputs"],"mitigation":"action","confidence":"preliminary"},"nextSteps":[{"title":"action","reason":"why"}],"verificationNeeded":["fact to verify"]}.','PROFILE:',profileJson].join('\n');try{const r=await onAnalyze(prompt);if(!r)throw new Error('Readiness report did not return.');setRadarText(r.reply);setRadar(parseReport(r.reply));setTools(r.toolExecutions);setMessage(r.toolExecutions.length?'Radar report returned with backend activity.':'Preliminary report; no statistical prediction is claimed.');}catch(e){setError(e instanceof Error?e.message:'Readiness failed.');}};
- const sendPlan=async()=>{const prompt=['SYLVIA CAREER BRIDGE — MISSION CONTROL PLAN.','Use get_current_mission to inspect real state; reuse a suitable mission or start one only if needed. Use actual supported tools to add/update profile, portfolio and readiness steps. Never mark future work complete. Do not claim persistence without structured tool confirmation.','PROFILE:',profileJson].join('\n');try{const r=await onAnalyze(prompt);if(!r)throw new Error('No response; mission persistence not confirmed.');setTools(r.toolExecutions);setMessage(r.toolExecutions.length?'Mission request returned tool activity; inspect trace to verify persistence.':'No structured mission result; persistence is not confirmed.');}catch(e){setError(e instanceof Error?e.message:'Mission request failed.');}};
- const clearDraft=()=>{if(!window.confirm('Clear career profile and portfolio drafts from this browser? This does not delete remote CAREER_PROFILE memory.'))return;window.localStorage.removeItem(STORAGE_KEY);setProfile(blankProfile());setCv('');setCvName('');setProfileText('');setProfileReport(null);setRadarText('');setRadar(null);setWork('');setFeedback('');setTools([]);setSaved(false);setMessage('Local draft cleared. Remote memory is separate.');setTab('profile');};
- const nav:Array<{id:Tab;title:string;detail:string}>=[{id:'profile',title:'My profile',detail:'CV, skills and certificates'},{id:'portfolio',title:'Portfolio studio',detail:'Build practical proof'},{id:'opportunities',title:'Opportunity match',detail:'Compare a real vacancy'}];
+interface ApplicationItem {
+  id: string;
+  role: string;
+  company: string;
+  status: 'Applied' | 'Review' | 'Interview' | 'Offer' | 'Screened';
+  dateApplied: string;
+}
 
- return (
-  <div className="flex h-[100dvh] min-h-0 w-full bg-[#f5f7f5] text-slate-800">
-    <aside className="hidden w-[218px] shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
-      <div className="border-b border-slate-100 px-4 py-5"><div className="flex items-center gap-2.5"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-800 text-white"><BriefcaseBusiness className="h-4 w-4" /></div><div><div className="text-sm font-bold text-slate-900">Career Bridge</div><div className="text-[10px] uppercase tracking-wider text-slate-500">Sylvia workspace</div></div></div></div>
-      <div className="m-3 rounded-2xl border border-slate-200 bg-[#f8faf8] p-3"><div className="flex items-center gap-2"><div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 font-semibold text-emerald-900">{profile.name.trim() ? profile.name.trim().split(/\s+/).map(n => n[0]).slice(0,2).join('').toUpperCase() : 'CB'}</div><div className="min-w-0"><div className="truncate text-xs font-semibold text-slate-900">{profile.name || 'Your career profile'}</div><div className="text-[10px] text-slate-500">{completion}% profile setup</div></div></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-700" style={{ width: completion + '%' }} /></div></div>
-      <nav className="flex-1 space-y-1 px-3 py-2"><div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Your workspace</div>{nav.map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ' + (tab === item.id ? 'bg-emerald-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50')}><span className={tab === item.id ? 'text-emerald-100' : 'text-emerald-800'}>{item.id === 'profile' ? <BriefcaseBusiness className="h-4 w-4" /> : item.id === 'portfolio' ? <BookOpen className="h-4 w-4" /> : <Compass className="h-4 w-4" />}</span><span><span className="block text-xs font-semibold">{item.title}</span><span className={'mt-0.5 block text-[10px] ' + (tab === item.id ? 'text-emerald-100/80' : 'text-slate-400')}>{item.detail}</span></span></button>)}<button type="button" onClick={onOpenMissionControl} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-600 hover:bg-slate-50"><Target className="h-4 w-4 text-emerald-800" /><span><span className="block text-xs font-semibold">Mission Control</span><span className="mt-0.5 block text-[10px] text-slate-400">Track next steps</span></span></button></nav>
-      <div className="border-t border-slate-100 p-3"><div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5"><span className={'h-2 w-2 rounded-full ' + (backendConnected ? 'bg-emerald-500' : 'bg-amber-500')} /><span className="text-[10px] text-slate-600">{backendConnected ? 'Sylvia backend connected' : 'Connection needs checking'}</span></div><button type="button" onClick={clearDraft} className="mt-2 inline-flex items-center gap-1.5 px-1 py-1 text-[10px] text-slate-500 hover:text-rose-700"><Trash2 className="h-3 w-3" />Clear local draft</button></div>
-    </aside>
-    <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-emerald-900/10 bg-emerald-700 px-4 py-2 text-[10px] font-semibold text-white sm:px-6 sm:text-xs"><span className="truncate">{backendConnected ? 'SYLVIA LIVE WORKSPACE' : 'SYLVIA WORKSPACE · CONNECTION NEEDS CHECKING'} — Profile · Portfolio · Readiness</span><span className="shrink-0 rounded-full border border-white/25 px-2 py-0.5 text-[9px]">FNB · WORK READINESS</span></div>
-      <div className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-[1440px] space-y-5 p-4 sm:p-6 xl:p-8">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#14532d] via-[#1c6a38] to-[#d2b83f] p-5 text-white shadow-sm sm:p-7"><div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full border border-white/10 bg-white/[0.06]" /><div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="max-w-3xl"><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-50"><Sparkles className="h-3.5 w-3.5" />Your skills, proven</div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Build your path to meaningful work.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/90">Turn real experience, certificates and practical work into credible evidence. Sylvia helps you see what you can show today—and what to build next.</p><div className="mt-4 flex flex-wrap gap-2 text-[11px] text-emerald-50"><span className="rounded-full border border-white/20 bg-black/10 px-3 py-1.5">Informal experience counts</span><span className="rounded-full border border-white/20 bg-black/10 px-3 py-1.5">No CV required</span><span className="rounded-full border border-white/20 bg-black/10 px-3 py-1.5">Low-cost next steps</span></div></div><div className="flex items-center gap-3 self-start rounded-2xl border border-white/20 bg-black/10 px-3 py-2 sm:self-center"><div className="rounded-full bg-white/90 p-1"><SylviaDotPal character="blu" state={isWorking || busyFile ? 'thinking' : 'idle'} size={68} text={isWorking ? 'Working' : undefined} className="h-[68px] w-[68px]" /></div><div><div className="text-sm font-semibold">Sylvia</div><div className="text-[10px] text-emerald-50/80">Your AI career partner</div><div className="mt-1 text-[10px]">{isWorking || busyFile ? 'Working with you' : 'Ready when you are'}</div></div></div></div></section>
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[{label:'Profile setup',value:completion+'%',detail:'Profile checklist'},{label:'Skill Passport',value:String(profile.skills.length),detail:'Skills with evidence labels'},{label:'Portfolio reviews',value:String(reviewed),detail:completed+' marked complete by you'},{label:'Certificates',value:String(profile.certificates.length),detail:'Uploads are not verification'}].map(item => <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="text-xs text-slate-500">{item.label}</div><div className="mt-2 text-2xl font-bold text-slate-900">{item.value}</div><div className="mt-1 text-[10px] text-slate-500">{item.detail}</div></div>)}</section>
-        <div className="flex gap-2 overflow-x-auto lg:hidden">{nav.map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={'shrink-0 rounded-xl border px-3 py-2.5 text-xs font-semibold ' + (tab === item.id ? 'border-emerald-800 bg-emerald-800 text-white' : 'border-slate-200 bg-white text-slate-600')}>{item.title}</button>)}</div>
-        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"><CircleAlert className="mr-2 inline h-4 w-4" />{error}</div>}
-        {message && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900"><CheckCircle2 className="mr-2 inline h-4 w-4" />{message}</div>}
-        {tab === 'profile' && <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,0.85fr)]">
-          <div className="space-y-5"><section className={card}><div className="mb-4"><h2 className="text-base font-bold text-slate-900">1. Profile & experience</h2><p className="mt-1 text-xs leading-5 text-slate-500">Start from a CV or build your profile from scratch. You confirm what is true.</p></div>
-            <label className="block text-xs font-semibold text-slate-700">Read an existing CV <span className="font-normal text-slate-400">PDF/DOCX/TXT/MD/CSV · max 8 MB</span><input type="file" accept=".pdf,.docx,.txt,.md,.csv" disabled={busyFile} onChange={e => { void handleFile(e.target.files?.[0], 'cv'); e.currentTarget.value = ''; }} className="mt-2 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-800 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white" />{cvName && <span className="mt-2 block text-xs text-emerald-800">{cvName} · text available to review</span>}<span className="mt-1 block text-[10px] text-slate-500">File text is extracted locally. It is sent only when you request analysis. Scanned PDFs need manual text entry.</span></label>
-            {cv && <label className="mt-3 block text-xs font-semibold text-slate-700">Review extracted CV text<textarea value={cv} onChange={e => setCv(e.target.value.slice(0,LIMIT))} rows={4} className={field} /></label>}
-            <div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-700">Name or preferred name<input value={profile.name} onChange={e=>update('name',e.target.value)} placeholder="How should Sylvia address you?" className={field}/></label><label className="text-xs font-semibold text-slate-700">Career stage<select value={profile.stage} onChange={e=>update('stage',e.target.value)} className={field}><option>Looking for my first opportunity</option><option>Studying or recently finished school</option><option>Have informal or short-term experience</option><option>Have work experience and want to move forward</option><option>Changing career direction</option><option>Returning to work</option></select></label><label className="text-xs font-semibold text-slate-700">Education or training<input value={profile.education} onChange={e=>update('education',e.target.value)} placeholder="Highest grade, course or certificate" className={field}/></label><label className="text-xs font-semibold text-slate-700">Target role<input value={profile.target} onChange={e=>update('target',e.target.value)} placeholder="e.g. retail assistant, junior IT support" className={field}/></label><label className="text-xs font-semibold text-slate-700">Town or travel area<input value={profile.area} onChange={e=>update('area',e.target.value)} placeholder="Town/general area only" className={field}/></label><label className="text-xs font-semibold text-slate-700">Current strengths<input value={profile.strengths} onChange={e=>update('strengths',e.target.value)} placeholder="e.g. planning, helping customers" className={field}/></label></div>
-            <label className="mt-4 block text-xs font-semibold text-slate-700">What have you actually done?<textarea value={profile.experience} onChange={e=>update('experience',e.target.value.slice(0,LIMIT))} rows={5} placeholder="Paid or informal work, family business, community activity, caring, school projects, selling products, fixing things, learning online…" className={field}/><span className="mt-1 block text-[10px] font-normal text-slate-500">No formal job is required. Sylvia must not invent work experience.</span></label>
-            <div className="mt-4"><div className="mb-2 text-xs font-semibold text-slate-700">Barriers to work or training</div><div className="grid gap-2 sm:grid-cols-2">{[{id:'transport',label:'Transport cost or distance',icon:'↗'},{id:'data',label:'Limited mobile data',icon:'◌'},{id:'device',label:'Limited laptop/device access',icon:'▣'},{id:'experience',label:'Little formal experience',icon:'◇'},{id:'money',label:'Need free or low-cost options',icon:'R'}].map(item=><label key={item.id} className={'flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs '+(profile.barriers.includes(item.id)?'border-emerald-300 bg-emerald-50 text-emerald-900':'border-slate-200 text-slate-600')}><input type="checkbox" checked={profile.barriers.includes(item.id)} onChange={()=>update('barriers',profile.barriers.includes(item.id)?profile.barriers.filter(v=>v!==item.id):[...profile.barriers,item.id])} className="accent-emerald-800"/><span className="font-bold text-emerald-800">{item.icon}</span>{item.label}</label>)}</div></div>
-            <button type="button" onClick={()=>{void analyzeProfile();}} disabled={isWorking||busyFile} className={primary+' mt-5 w-full'}>{isWorking?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Brain className="h-4 w-4"/>}Analyse profile with Sylvia</button>
-          </section>
-          {profileText && <section className={card}><h2 className="text-sm font-bold text-slate-900">Sylvia's profile analysis</h2>{profileReport?<><p className="mt-3 text-sm leading-6">{profileReport.summary}</p>{profileReport.skills?.map((s,i)=><div key={s.name+i} className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3"><b className="text-sm">{s.name}</b><div className="mt-1 text-[10px] text-amber-800">Inferred · needs proof</div><p className="mt-1 text-xs text-slate-600">{s.evidence}</p><p className="mt-1 text-xs text-slate-600">Proof idea: {s.proofTask}</p><button type="button" onClick={()=>addSkill(s.name,'Inferred from evidence',s.evidence+' Proof idea: '+s.proofTask)} className="mt-2 text-xs font-semibold text-emerald-800"><Plus className="mr-1 inline h-3 w-3"/>Add to Skill Passport</button></div>)}{profileReport.rolePaths?.map((r,i)=><div key={r.role+i} className="mt-3 rounded-xl border border-slate-200 p-3"><b className="text-sm">{r.role}</b><p className="mt-1 text-xs">{r.why}</p>{r.missingProof?.length?<p className="mt-1 text-xs text-slate-500">Proof to build: {r.missingProof.join('; ')}</p>:null}<button type="button" onClick={()=>update('target',r.role)} className="mt-2 text-xs font-semibold text-emerald-800">Set as target role</button></div>)}</>:<pre className="mt-3 whitespace-pre-wrap text-xs">{profileText}</pre>}<p className="mt-4 rounded-lg bg-slate-50 p-3 text-[10px] text-slate-500">Suggestions are not qualifications, hiring decisions or verified credentials.</p></section>}
+interface RoadmapItem {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+interface CourseItem {
+  id: string;
+  title: string;
+  duration: string;
+  level: string;
+  icon: 'play' | 'chat' | 'code';
+  enrolled: boolean;
+  progress: number;
+  description: string;
+}
+
+interface InternshipItem {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  stipend: string;
+  category: 'Design' | 'Marketing' | 'Tech' | 'Remote';
+  matchRate: number;
+  tags: string[];
+}
+
+const INITIAL_COURSES: CourseItem[] = [
+  {
+    id: 'c1',
+    title: 'Data storytelling',
+    duration: '2h 30m',
+    level: 'Intermediate',
+    icon: 'play',
+    enrolled: true,
+    progress: 65,
+    description: 'Transform complex analytics and business metrics into compelling visual narratives for executive decision-makers.',
+  },
+  {
+    id: 'c2',
+    title: 'Communication skills',
+    duration: '1h 45m',
+    level: 'Beginner',
+    icon: 'chat',
+    enrolled: true,
+    progress: 40,
+    description: 'Master assertive cross-functional communication, active listening, and concise written reporting.',
+  },
+  {
+    id: 'c3',
+    title: 'Intro to frontend',
+    duration: '4h 20m',
+    level: 'Beginner',
+    icon: 'code',
+    enrolled: false,
+    progress: 0,
+    description: 'Build responsive, accessible interfaces using modern HTML, CSS, JavaScript, and Tailwind design tokens.',
+  },
+  {
+    id: 'c4',
+    title: 'Product design systems',
+    duration: '3h 15m',
+    level: 'Intermediate',
+    icon: 'play',
+    enrolled: false,
+    progress: 0,
+    description: 'Learn component architecture, Figma tokens, accessibility contrast rules, and design-to-engineering handoff.',
+  },
+  {
+    id: 'c5',
+    title: 'Technical interview prep',
+    duration: '2h 10m',
+    level: 'Advanced',
+    icon: 'code',
+    enrolled: false,
+    progress: 0,
+    description: 'Deconstruct algorithmic thinking, data structures, and problem-solving patterns under timed interview conditions.',
+  },
+];
+
+const CURATED_INTERNSHIPS: InternshipItem[] = [
+  {
+    id: 'int_1',
+    title: 'UX / Product Design Intern',
+    company: 'Figma',
+    location: 'Remote · Global',
+    type: 'Full-time Intern',
+    stipend: 'R18,500 / mo',
+    category: 'Design',
+    matchRate: 92,
+    tags: ['Design Systems', 'Figma', 'Prototyping', 'Remote'],
+  },
+  {
+    id: 'int_2',
+    title: 'Product Operations Intern',
+    company: 'Spotify',
+    location: 'Hybrid · Cape Town',
+    type: 'Full-time Intern',
+    stipend: 'R16,000 / mo',
+    category: 'Design',
+    matchRate: 88,
+    tags: ['User Research', 'Product Specs', 'Data Analytics'],
+  },
+  {
+    id: 'int_3',
+    title: 'Design Systems Intern',
+    company: 'Airbnb',
+    location: 'Remote · Africa South',
+    type: 'Contract Intern',
+    stipend: 'R19,200 / mo',
+    category: 'Design',
+    matchRate: 85,
+    tags: ['Figma Tokens', 'UI Design', 'Accessibility', 'Remote'],
+  },
+  {
+    id: 'int_4',
+    title: 'Frontend Web Engineering Intern',
+    company: 'First National Bank (FNB)',
+    location: 'Hybrid · Johannesburg',
+    type: 'Full-time Graduate',
+    stipend: 'R17,000 / mo',
+    category: 'Tech',
+    matchRate: 81,
+    tags: ['React', 'TypeScript', 'Tailwind', 'Mobile'],
+  },
+  {
+    id: 'int_5',
+    title: 'Growth & Product Marketing Intern',
+    company: 'Takealot Group',
+    location: 'Cape Town / Remote',
+    type: 'Paid Internship',
+    stipend: 'R14,500 / mo',
+    category: 'Marketing',
+    matchRate: 79,
+    tags: ['Content Strategy', 'Funnel Analytics', 'A/B Testing'],
+  },
+  {
+    id: 'int_6',
+    title: 'Junior Data Analyst Intern',
+    company: 'Standard Bank Innovation Hub',
+    location: 'Johannesburg',
+    type: 'Full-time Intern',
+    stipend: 'R15,500 / mo',
+    category: 'Tech',
+    matchRate: 76,
+    tags: ['SQL', 'Data Storytelling', 'Python', 'PowerBI'],
+  },
+];
+
+const INTERVIEW_QUESTIONS = [
+  {
+    question: 'Tell me about a time you handled a difficult project.',
+    category: 'Behavioral',
+    tip: 'Use the STAR method (Situation, Task, Action, Result). Highlight how you resolved conflict or ambiguity proactively.',
+  },
+  {
+    question: 'How do you prioritize competing deadlines across different stakeholders?',
+    category: 'Situational',
+    tip: 'Explain your framework for assessing urgency vs impact, and how you communicate status changes before deadlines slip.',
+  },
+  {
+    question: 'Walk me through your design process from problem discovery to final prototype.',
+    category: 'Technical',
+    tip: 'Anchor on user research, defining constraints early, rapid wireframing, usability testing, and measurable outcomes.',
+  },
+  {
+    question: 'Tell me about a time you received critical feedback and how you incorporated it.',
+    category: 'Growth',
+    tip: 'Show humbleness and objectivity. Detail what action you took and how it improved the final deliverable.',
+  },
+  {
+    question: 'Why are you passionate about building a career in this industry?',
+    category: 'Motivation',
+    tip: 'Connect a personal experience or project with real-world problems you are excited to solve.',
+  },
+];
+
+export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
+  backendConnected,
+  isWorking,
+  onAnalyze,
+  onOpenConversation,
+  onOpenMissionControl,
+  onReturnToCompanion,
+  onNavigateToView,
+}) => {
+  // 1. Search internships state
+  const [searchQuery, setSearchQuery] = useState('Product design');
+  const [selectedTag, setSelectedTag] = useState<string>('Design');
+  const [showInternshipsModal, setShowInternshipsModal] = useState(false);
+
+  // 2. CV revamp state
+  const [cvFileName, setCvFileName] = useState('CV_2025.pdf');
+  const [cvScore, setCvScore] = useState(94);
+  const [showRevampModal, setShowRevampModal] = useState(false);
+  const [isRevamping, setIsRevamping] = useState(false);
+  const [revampFeedback, setRevampFeedback] = useState<string | null>(null);
+
+  // 3. Courses state
+  const [courses, setCourses] = useState<CourseItem[]>(INITIAL_COURSES);
+  const [showCoursesModal, setShowCoursesModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseItem | null>(null);
+
+  // 4. Skill gap state & D3 Radar view
+  const [skillGapViewMode, setSkillGapViewMode] = useState<'radar' | 'bars'>('bars');
+  const [targetRoleId, setTargetRoleId] = useState<string>('product-design');
+  const [skills, setSkills] = useState([
+    { name: 'Design', percentage: 82, color: 'bg-[#1a6682]' },
+    { name: 'Data', percentage: 58, color: 'bg-[#1a6682]' },
+    { name: 'Comm.', percentage: 74, color: 'bg-[#1a6682]' },
+  ]);
+  const [showSkillGapModal, setShowSkillGapModal] = useState(false);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
+
+  // 5. Interview practice state
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [practiceAnswer, setPracticeAnswer] = useState('');
+  const [showAnswerBox, setShowAnswerBox] = useState(false);
+  const [aiCoachingTip, setAiCoachingTip] = useState<string | null>(null);
+  const [isCoaching, setIsCoaching] = useState(false);
+
+  // 6. Applications state
+  const [applications, setApplications] = useState<ApplicationItem[]>([
+    {
+      id: 'app_1',
+      role: 'UX Intern',
+      company: 'Figma',
+      status: 'Interview',
+      dateApplied: '2026-10-21',
+    },
+    {
+      id: 'app_2',
+      role: 'Product Intern',
+      company: 'Spotify',
+      status: 'Review',
+      dateApplied: '2026-10-22',
+    },
+    {
+      id: 'app_3',
+      role: 'Design Intern',
+      company: 'Airbnb',
+      status: 'Offer',
+      dateApplied: '2026-10-18',
+    },
+  ]);
+  const [showLogAppModal, setShowLogAppModal] = useState(false);
+  const [newCompany, setNewCompany] = useState('');
+  const [newRole, setNewRole] = useState('');
+  const [newStatus, setNewStatus] = useState<ApplicationItem['status']>('Applied');
+
+  // 7. Roadmap state
+  const [roadmap, setRoadmap] = useState<RoadmapItem[]>([
+    { id: 'rm_1', title: 'Complete profile', completed: true },
+    { id: 'rm_2', title: 'Upload & revamp CV', completed: true },
+    { id: 'rm_3', title: 'Finish "Data storytelling" course', completed: false },
+    { id: 'rm_4', title: 'Practice 3 mock interviews', completed: false },
+    { id: 'rm_5', title: 'Apply to 5 internships', completed: false },
+  ]);
+  const [roadmapSuccessMsg, setRoadmapSuccessMsg] = useState(false);
+
+  // Profile Menu Dropdown
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Filtered internships calculation
+  const filteredInternships = CURATED_INTERNSHIPS.filter(item => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesQuery =
+      !query ||
+      item.title.toLowerCase().includes(query) ||
+      item.tags.some(t => t.toLowerCase().includes(query)) ||
+      item.category.toLowerCase().includes(query);
+    const matchesTag =
+      !selectedTag ||
+      item.category === selectedTag ||
+      (selectedTag === 'Remote' && item.location.includes('Remote')) ||
+      item.tags.includes(selectedTag);
+    return matchesQuery && matchesTag;
+  });
+
+  const handleNextQuestion = () => {
+    setQuestionIndex(prev => (prev + 1) % INTERVIEW_QUESTIONS.length);
+    setPracticeAnswer('');
+    setAiCoachingTip(null);
+  };
+
+  const handleGetInterviewFeedback = async () => {
+    if (!practiceAnswer.trim()) return;
+    setIsCoaching(true);
+    try {
+      const q = INTERVIEW_QUESTIONS[questionIndex];
+      const prompt = `You are Sylvia, executive career coach. Review this answer for the interview question: "${q.question}".
+User's candidate answer: "${practiceAnswer}".
+Give 2 brief, encouraging bullet points on what was strong and 1 tactical improvement using the STAR method. Keep it under 100 words.`;
+      const res = await onAnalyze(prompt);
+      if (res?.reply) {
+        setAiCoachingTip(res.reply);
+      } else {
+        setAiCoachingTip('Strong structure! Be sure to quantify your impact (e.g. reduced turnaround time by 30% or saved 4 hours per sprint).');
+      }
+    } catch {
+      setAiCoachingTip('Great foundation. Focus on leading with the tangible result and what you learned from the experience.');
+    } finally {
+      setIsCoaching(false);
+    }
+  };
+
+  const handleRevampCVWithAI = async () => {
+    setIsRevamping(true);
+    setShowRevampModal(true);
+    try {
+      const prompt = `You are Sylvia, executive resume optimizer. The user wants to revamp their CV for modern tech and design internships. Target role: ${searchQuery || 'Product Design / Tech'}.
+Generate:
+1. Updated CV Score breakdown (e.g. 94/100).
+2. Three impactful bullet points rewritten with strong action verbs (Before vs After).
+3. Top 4 ATS keywords they must include.`;
+      const res = await onAnalyze(prompt);
+      if (res?.reply) {
+        setRevampFeedback(res.reply);
+        setCvScore(95);
+      } else {
+        setRevampFeedback(`### AI Revamped Recommendations
+**Overall ATS Compatibility Score: 94 / 100**
+
+• **Action Verb Enhancement:**
+  - *Before:* Helped team design customer onboarding screens.
+  - *After:* Architected end-to-end customer onboarding design flows in Figma, decreasing early churn by 18%.
+
+• **Quantifiable Metrics:**
+  - *Before:* Worked on marketing collaterals and social posts.
+  - *After:* Created unified brand design system components across 12 digital campaigns, lifting engagement by 32%.
+
+• **ATS Keyword Match:**
+  - Design Systems · Cross-Functional Collaboration · Wireframing · Usability Testing`);
+      }
+    } catch {
+      setRevampFeedback(`### AI Revamped Recommendations
+**Overall ATS Compatibility Score: 94 / 100**
+
+• **Action Verb Enhancement:**
+  - *Before:* Responsible for user testing and designs.
+  - *After:* Spearheaded rapid prototyping and usability testing across 25+ participants, accelerating feature launch by 2 weeks.`);
+    } finally {
+      setIsRevamping(false);
+    }
+  };
+
+  const handleReanalyzeSkills = async () => {
+    setIsReanalyzing(true);
+    try {
+      await new Promise(r => setTimeout(r, 600));
+      setSkills([
+        { name: 'Design', percentage: 86, color: 'bg-[#1a6682]' },
+        { name: 'Data', percentage: 68, color: 'bg-[#1a6682]' },
+        { name: 'Comm.', percentage: 80, color: 'bg-[#1a6682]' },
+      ]);
+    } finally {
+      setIsReanalyzing(false);
+      setShowSkillGapModal(true);
+    }
+  };
+
+  const handleToggleRoadmap = (id: string) => {
+    setRoadmap(prev =>
+      prev.map(item => (item.id === id ? { ...item, completed: !item.completed } : item))
+    );
+  };
+
+  const handleUpdateRoadmapProgress = () => {
+    setRoadmapSuccessMsg(true);
+    setTimeout(() => setRoadmapSuccessMsg(false), 3000);
+  };
+
+  const handleAddApplication = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompany.trim() || !newRole.trim()) return;
+    const newItem: ApplicationItem = {
+      id: `app_${Date.now()}`,
+      company: newCompany.trim(),
+      role: newRole.trim(),
+      status: newStatus,
+      dateApplied: new Date().toISOString().split('T')[0],
+    };
+    setApplications(prev => [newItem, ...prev]);
+    setNewCompany('');
+    setNewRole('');
+    setShowLogAppModal(false);
+  };
+
+  const handleQuickApplyFromModal = (internship: InternshipItem) => {
+    const existing = applications.find(
+      a => a.company.toLowerCase() === internship.company.toLowerCase()
+    );
+    if (existing) return;
+    const newItem: ApplicationItem = {
+      id: `app_${Date.now()}`,
+      company: internship.company,
+      role: internship.title,
+      status: 'Applied',
+      dateApplied: new Date().toISOString().split('T')[0],
+    };
+    setApplications(prev => [newItem, ...prev]);
+  };
+
+  const currentQuestion = INTERVIEW_QUESTIONS[questionIndex];
+  const inProgressCoursesCount = courses.filter(c => c.enrolled && c.progress < 100).length;
+
+  return (
+    <div className="w-full max-w-full min-h-full bg-[#f0f4f9] text-slate-800 flex flex-col font-sans select-text px-3.5 sm:px-6 py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pb-16 shrink-0 box-border">
+      {/* Top Banner Navigation / Breadcrumb */}
+      <div className="w-full flex items-center justify-between">
+        <button
+          onClick={() => {
+            if (onReturnToCompanion) onReturnToCompanion();
+            else if (onNavigateToView) onNavigateToView('chat');
+          }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#1a6682] transition-colors"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          <span>Back to Sylvia Workspace</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenConversation}
+            className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-slate-300 shadow-xs transition-colors"
+          >
+            Console Stream
+          </button>
+          <button
+            onClick={onOpenMissionControl}
+            className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#1a6682] text-white hover:bg-[#15546b] shadow-xs transition-colors"
+          >
+            Mission Control
+          </button>
+        </div>
+      </div>
+
+      {/* Header Bar */}
+      <div className="w-full flex items-center justify-between">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#145b77] text-white flex items-center justify-center shadow-md shadow-[#145b77]/20 shrink-0">
+            <Briefcase className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
           </div>
-          <div className="space-y-5">
-            <section className={card}><div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">2. Skill Passport</h2><p className="mt-1 text-xs text-slate-500">Skills stay linked to their evidence.</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{profile.skills.length} skills</span></div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]"><input value={skillName} onChange={e=>setSkillName(e.target.value)} placeholder="Skill name" className={field}/><button type="button" onClick={()=>addSkill(skillName,'Self-reported',skillEvidence)} className={secondary}><Plus className="h-4 w-4"/>Add skill</button></div><input value={skillEvidence} onChange={e=>setSkillEvidence(e.target.value)} placeholder="Example or evidence (recommended)" className={field}/>
-              {profile.skills.length===0?<div className="mt-4 rounded-xl border border-dashed border-slate-300 p-4 text-center"><Award className="mx-auto h-6 w-6 text-slate-400"/><p className="mt-2 text-xs text-slate-600">Add a skill, analyse your profile, or build evidence in Portfolio Studio.</p></div>:profile.skills.map(s=><div key={s.id} className="mt-3 rounded-xl border border-slate-200 p-3"><div className="font-semibold text-sm">{s.name}</div><span className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px]">{s.source}</span>{s.evidence&&<p className="mt-2 text-xs text-slate-600">{s.evidence}</p>}<button type="button" onClick={()=>update('skills',profile.skills.filter(v=>v.id!==s.id))} className="mt-2 text-[10px] text-rose-700">Remove</button></div>)}
-              <p className="mt-3 rounded-xl bg-blue-50 p-3 text-[10px] text-blue-900">Externally verified is reserved for evidence checked by a real authorised verifier. Reading a claim does not authenticate it.</p>
-            </section>
-            <section className={card}><h2 className="text-base font-bold text-slate-900">3. Certificates & training</h2><p className="mt-1 text-xs text-slate-500">Add details manually or read a PDF/DOCX/text document.</p>
-              <label className="mt-3 block text-xs font-semibold text-slate-700">Certificate or course name<input value={certName} onChange={e=>setCertName(e.target.value)} placeholder="e.g. Basic Computer Certificate" className={field}/></label>
-              <label className="mt-3 block text-xs font-semibold text-slate-700">Issuer/provider<input value={certIssuer} onChange={e=>setCertIssuer(e.target.value)} placeholder="Training provider or institution" className={field}/></label>
-              <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={addCertificate} className={secondary}><Plus className="h-4 w-4"/>Add details</button><label className={primary+' cursor-pointer'}><Upload className="h-4 w-4"/>Read certificate<input type="file" accept=".pdf,.docx,.txt,.md,.csv" className="sr-only" disabled={busyFile} onChange={e=>{void handleFile(e.target.files?.[0],'certificate');e.currentTarget.value='';}}/></label></div>
-              {profile.certificates.map(c=><div key={c.id} className="mt-3 rounded-xl border border-slate-200 p-3"><div className="text-sm font-semibold">{c.title}</div><div className="mt-1 text-xs text-slate-500">{c.issuer||'Issuer not supplied'}</div><div className="mt-2 text-[10px] font-semibold text-amber-800">{c.status}</div>{c.filename&&<div className="mt-1 break-all text-[10px] text-slate-500">{c.filename}</div>}{c.extractedText&&<details className="mt-2"><summary className="cursor-pointer text-[10px] font-semibold text-emerald-800">Review extracted text</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-[10px] text-slate-600">{c.extractedText.slice(0,2500)}</pre></details>}<button type="button" onClick={()=>update('certificates',profile.certificates.filter(v=>v.id!==c.id))} className="mt-2 text-[10px] text-rose-700">Remove</button></div>)}
-            </section>
-            <section className={card}><h3 className="text-sm font-bold text-slate-900">Remember this career profile</h3><p className="mt-1 text-xs leading-5 text-slate-500">Optional. With your consent, ask Sylvia to save a concise profile to persistent Context Memory. Raw CV and certificate text is excluded.</p><label className="mt-3 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"><input type="checkbox" checked={consent} onChange={e=>{setConsent(e.target.checked);setSaved(false);}} className="mt-0.5 accent-emerald-800"/><span>I consent to saving my career profile for future guidance.</span></label><button type="button" onClick={()=>{void saveMemory();}} disabled={isWorking||!consent} className={primary+' mt-3 w-full'}><Save className="h-4 w-4"/>Save to Sylvia</button>{saved&&<p className="mt-3 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">Structured tool results confirm persistent career memory.</p>}<p className="mt-2 text-[10px] text-slate-500">This browser stores a local draft. Clearing it here does not delete remote memory.</p></section>
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight leading-tight">
+              Work Empowerment
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium tracking-wide">
+              Readiness · Growth · Opportunity
+            </p>
           </div>
-        </div>}
-        {tab==='portfolio' && <div className="space-y-5">
-          <section className={card}><div className="flex flex-col justify-between gap-3 sm:flex-row"><div><h2 className="text-xl font-bold text-slate-900">Portfolio Challenge Studio</h2><p className="mt-1 text-xs leading-5 text-slate-500">Complete practical tasks, receive feedback and keep the result as portfolio evidence. These are simulations, not internships or employer verification.</p></div><span className="h-fit rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-900">{profile.artifacts.length} saved project(s)</span></div><div className="mt-4 grid gap-3 md:grid-cols-3">{challenges.map(c=><button key={c.id} type="button" onClick={()=>{setChallengeId(c.id);const old=profile.artifacts.find(a=>a.challenge===c.title);setWork(old?.work||'');setFeedback(old?.feedback||'');setWorkMessage('');}} className={'rounded-2xl border p-4 text-left '+(challengeId===c.id?'border-emerald-700 bg-emerald-50':'border-slate-200 hover:bg-slate-50')}><div className="text-sm font-bold">{c.title}</div><div className="mt-1 text-[10px] font-semibold text-emerald-800">{c.role}</div><p className="mt-2 text-xs leading-5 text-slate-600">{c.scenario}</p></button>)}</div></section>
-          <section className={card}><div className="text-xs font-semibold text-emerald-800">{challenge.role}</div><h3 className="mt-1 text-lg font-bold">{challenge.title}</h3><div className="mt-3 rounded-xl bg-slate-50 p-4"><div className="text-xs font-bold">Scenario</div><p className="mt-1 text-sm leading-6">{challenge.scenario}</p><div className="mt-3 text-xs font-bold">Your task</div><p className="mt-1 text-sm leading-6">{challenge.task}</p><div className="mt-3 text-xs font-bold">Assessment rubric</div>{challenge.rubric.map(r=><div key={r} className="mt-1 text-xs text-slate-600">• {r}</div>)}</div>
-            <label className="mt-4 block text-xs font-semibold">Your work<textarea value={work} onChange={e=>setWork(e.target.value.slice(0,LIMIT))} rows={8} placeholder="Write your response, create a table, or paste the content of your sample…" className={field}/></label>
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-800"><Upload className="h-4 w-4"/>Attach work sample<input type="file" accept=".pdf,.docx,.txt,.md,.csv" className="sr-only" disabled={busyFile} onChange={e=>{void handleFile(e.target.files?.[0],'work');e.currentTarget.value='';}}/></label><p className="mt-1 text-[10px] text-slate-500">File is parsed locally, not uploaded as a binary file.</p>
-            <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={()=>saveWork('Draft saved')} disabled={!work.trim()} className={secondary}><Save className="h-4 w-4"/>Save draft on device</button><button type="button" onClick={()=>{void reviewWork();}} disabled={isWorking||!work.trim()} className={primary}>{isWorking?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Sparkles className="h-4 w-4"/>}Ask Sylvia for rubric feedback</button></div>
-            {workMessage&&<p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs">{workMessage}</p>}{feedback&&<div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><h4 className="text-sm font-bold">Sylvia's feedback</h4><pre className="mt-2 whitespace-pre-wrap break-words text-xs leading-5">{feedback}</pre><p className="mt-2 text-[10px] text-emerald-900">AI coaching is not an external assessment or verified qualification.</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={addChallengeSkills} className={secondary}><Award className="h-4 w-4"/>Add task skills to passport</button><button type="button" onClick={()=>{const old=profile.artifacts.find(a=>a.challenge===challenge.title);if(old){update('artifacts',profile.artifacts.map(a=>a.id===old.id?{...a,status:'Marked complete by you'}:a));setWorkMessage('Marked complete by you, not independently verified.');}else{saveWork('Marked complete by you');setWorkMessage('Marked complete by you, not independently verified.');}}} className={primary}><CheckCircle2 className="h-4 w-4"/>I revised and completed it</button></div></div>}
-          </section>
-          {profile.artifacts.length>0&&<section className={card}><h3 className="text-sm font-bold">Saved portfolio work</h3>{profile.artifacts.map(a=><div key={a.id} className="mt-3 rounded-xl border border-slate-200 p-3"><div className="font-semibold text-sm">{a.challenge}</div><div className="mt-1 text-[10px] text-slate-500">{a.role} · {a.status}</div><p className="mt-2 whitespace-pre-wrap text-xs">{a.work.slice(0,260)}</p><button type="button" onClick={()=>{const c=challenges.find(x=>x.title===a.challenge);if(c)setChallengeId(c.id);setWork(a.work);setFeedback(a.feedback);}} className="mt-2 text-xs font-semibold text-emerald-800">Open work</button></div>)}</section>}
-        </div>}
-        {tab==='opportunities' && <div className="grid gap-5 2xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-5">
-            <section className={card}><div className="flex items-start gap-3"><div className="rounded-xl bg-emerald-50 p-2 text-emerald-800"><BriefcaseBusiness className="h-5 w-5"/></div><div><h2 className="text-lg font-bold text-slate-900">Opportunity Match</h2><p className="mt-1 text-xs leading-5 text-slate-500">Compare your actual experience and skill evidence with a real vacancy. Paste the job advert below; Sylvia will not invent listings or a fit percentage.</p></div></div>
-              <label className="mt-4 block text-xs font-semibold text-slate-700">Role or vacancy title<input value={vacancyTitle} onChange={e=>setVacancyTitle(e.target.value)} placeholder="e.g. Retail Assistant — entry level" className={field}/></label>
-              <label className="mt-3 block text-xs font-semibold text-slate-700">Source link (optional)<input type="url" value={vacancySource} onChange={e=>setVacancySource(e.target.value)} placeholder="Paste the official advert URL" className={field}/><span className="mt-1 block text-[10px] font-normal text-slate-500">The link is recorded for reference only; Sylvia compares the pasted text, not an unverified page.</span></label>
-              <label className="mt-3 block text-xs font-semibold text-slate-700">Paste the job description and requirements<textarea value={vacancyDescription} onChange={e=>setVacancyDescription(e.target.value.slice(0,8500))} rows={8} placeholder="Paste responsibilities, minimum requirements, location, closing date and application instructions…" className={field}/></label>
-              <button type="button" onClick={()=>{void compareVacancy();}} disabled={isWorking||!vacancyDescription.trim()} className={primary+' mt-4 w-full'}>{isWorking?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Brain className="h-4 w-4"/>}Compare my evidence with this role</button>
-              <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[10px] leading-5 text-slate-500">No vacancy is claimed to be live or independently verified. Results are based on your profile and the advert text you supplied.</div>
-            </section>
-            {matchText && <section className={card}><h3 className="text-sm font-bold text-slate-900">Your role comparison</h3>{matchReport?<><p className="mt-3 text-sm leading-6 text-slate-700">{matchReport.summary||'Comparison returned.'}</p>{matchReport.evidenceMatches?.length?<div className="mt-4"><h4 className="mb-2 text-xs font-bold">Requirements compared with your evidence</h4>{matchReport.evidenceMatches.map((item,i)=><div key={item.requirement+i} className="mt-2 rounded-xl border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-xs">{item.requirement}</b><span className={'rounded-full px-2 py-0.5 text-[10px] font-semibold '+(item.status==='supported'?'bg-emerald-50 text-emerald-800':item.status==='partial'?'bg-amber-50 text-amber-800':'bg-slate-100 text-slate-600')}>{item.status||'review'}</span></div><p className="mt-1 text-xs leading-5 text-slate-600">{item.evidence}</p></div>)}</div>:null}
-              {matchReport.transferableSkills?.length?<div className="mt-4"><h4 className="mb-2 text-xs font-bold">Transferable skills to highlight</h4>{matchReport.transferableSkills.map((item,i)=><div key={item.skill+i} className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3"><b className="text-xs">{item.skill}</b><p className="mt-1 text-xs leading-5 text-slate-600">{item.evidence}</p><button type="button" onClick={()=>addSkill(item.skill,'Inferred from evidence',item.evidence)} className="mt-2 text-xs font-semibold text-emerald-800"><Plus className="mr-1 inline h-3 w-3"/>Add to Skill Passport</button></div>)}</div>:null}
-              {matchReport.gaps?.length?<div className="mt-4"><h4 className="mb-2 text-xs font-bold">Gaps to close</h4>{matchReport.gaps.map((g,i)=>{const v=typeof g==='string'?{gap:g,reason:'',nextStep:''}:g;return <div key={i} className="mt-2 rounded-xl bg-slate-50 p-3"><b className="text-xs">{v.gap}</b>{v.reason&&<p className="mt-1 text-xs text-slate-600">{v.reason}</p>}{v.nextStep&&<p className="mt-1 text-xs text-emerald-800">Next: {v.nextStep}</p>}</div>;})}</div>:null}
-              {matchReport.applicationSteps?.length?<div className="mt-4"><h4 className="mb-2 text-xs font-bold">Practical application steps</h4>{matchReport.applicationSteps.map((step,i)=><div key={step+i} className="mt-2 flex gap-2 rounded-xl border border-slate-200 p-3 text-xs"><span className="font-bold text-emerald-800">{i+1}.</span><span>{step}</span></div>)}</div>:null}
-              {matchReport.verificationNeeded?.length?<div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><h4 className="text-xs font-bold">Check before applying</h4>{matchReport.verificationNeeded.map(v=><p key={v} className="mt-1 text-xs text-slate-600">• {v}</p>)}</div>:null}</>:<pre className="mt-3 whitespace-pre-wrap break-words text-xs leading-5">{matchText}</pre>}</section>}
-            <section className={card}><h2 className="text-lg font-bold">Career Readiness Radar</h2><p className="mt-1 text-xs leading-5 text-slate-500">Use your current evidence and barriers to choose a next action. This is not a hiring score or promise of employment.</p><div className="mt-4 rounded-2xl bg-slate-50 p-4"><div className="flex justify-between text-xs font-semibold"><span>Profile setup</span><span className="text-emerald-800">{completion}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-200"><div className="h-2 rounded-full bg-emerald-700" style={{width:completion+'%'}}/></div><p className="mt-2 text-[10px] text-slate-500">A completion checklist, not the probability of getting a job.</p></div><div className="mt-4 space-y-3">{[{title:'Target role and education',ok:Boolean(profile.target.trim()&&profile.education.trim())},{title:'Experience evidence',ok:Boolean(profile.experience.trim()||cv.trim())},{title:'Skill Passport',ok:profile.skills.length>0},{title:'Portfolio task reviewed',ok:reviewed>0}].map(item=><div key={item.title} className="flex items-center gap-2 text-xs"><span className={item.ok?'text-emerald-800':'text-slate-400'}>{item.ok?'✓':'○'}</span><span className="flex-1">{item.title}</span><span className={item.ok?'text-emerald-800':'text-slate-400'}>{item.ok?'In place':'Next step'}</span></div>)}</div><button type="button" onClick={()=>{void runRadar();}} disabled={isWorking} className={primary+' mt-5 w-full'}>{isWorking?<LoaderCircle className="h-4 w-4 animate-spin"/>:<Brain className="h-4 w-4"/>}Assess likely blockers</button><button type="button" onClick={()=>{void sendPlan();}} disabled={isWorking} className={secondary+' mt-2 w-full'}><Target className="h-4 w-4"/>Send next steps to Mission Control</button></section>
-            <section className={card}><h3 className="text-sm font-bold">Your evidence snapshot</h3><div className="mt-3 grid grid-cols-2 gap-3">{[{title:'Skill records',value:profile.skills.length},{title:'Certificates listed',value:profile.certificates.length},{title:'Projects reviewed',value:reviewed},{title:'Projects marked complete',value:completed}].map(x=><div key={x.title} className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] text-slate-500">{x.title}</div><div className="mt-1 text-lg font-bold">{x.value}</div></div>)}</div></section>
+        </div>
+
+        {/* Profile Avatar Pill */}
+        <div className="relative">
+          <button
+            onClick={() => setShowUserMenu(prev => !prev)}
+            className="flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-slate-200 hover:border-slate-300 bg-white shadow-xs transition-all"
+            aria-label="Sylvia Operator Account"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#dbe8f2] text-[#1b5e79] font-bold text-[11px] flex items-center justify-center">
+              SYL
+            </div>
+            <span className="text-xs font-semibold text-slate-800">Sylvia</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-100 shadow-xl p-2 z-50 text-xs">
+              <div className="px-3 py-2 border-b border-slate-100">
+                <p className="font-semibold text-slate-800">Sylvia Career Bridge</p>
+                <p className="text-[10px] text-slate-400">Collaborative Work Engine</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  onOpenConversation();
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-700 flex items-center gap-2"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#1a6682]" />
+                <span>Open AI Chat Stream</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  onOpenMissionControl();
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-700 flex items-center gap-2"
+              >
+                <Milestone className="w-3.5 h-3.5 text-[#1a6682]" />
+                <span>View Mission Control</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  if (onReturnToCompanion) onReturnToCompanion();
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 text-slate-700 flex items-center gap-2 border-t border-slate-100 mt-1"
+              >
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                <span>Minimize to Companion</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ROW 1: 3 CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+        {/* CARD 1: Find internship */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <Search className="w-4.5 h-4.5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Find internship</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Search thousands of curated internships matching your skills and goals.
+              </p>
+            </div>
+
+            {/* Search Bar */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1 focus-within:border-[#1a6682] transition-colors">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 ml-1.5 shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Role or keywords..."
+                className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 outline-none font-medium"
+              />
+              <button
+                onClick={() => setShowInternshipsModal(true)}
+                className="px-3 py-1 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-lg text-xs font-semibold shrink-0 transition-colors shadow-xs"
+              >
+                Search
+              </button>
+            </div>
+
+            {/* Filter Tags */}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {['Remote', 'Design', 'Marketing', '</> Tech'].map(tag => {
+                const cleanTag = tag.replace('</> ', '');
+                const isSelected = selectedTag === cleanTag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(isSelected ? '' : cleanTag)}
+                    className={`text-[11px] px-2.5 py-0.5 rounded-full border transition-all ${
+                      isSelected
+                        ? 'bg-[#1a6682]/10 border-[#1a6682] text-[#1a6682] font-semibold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {tag === 'Remote' && '⏱ '}
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="space-y-5"><section className={card}><h2 className="text-base font-bold">Sylvia's readiness assessment</h2>{!radarText&&<p className="mt-3 rounded-xl border border-dashed border-slate-300 p-5 text-xs text-slate-500">Choose a target role, describe experience and run the radar to see evidence, gaps and suggested next steps.</p>}{radar&&<><p className="mt-3 text-sm leading-6">{radar.readinessSummary||radar.summary}</p>{radar.barrierForecast&&<div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="text-xs font-bold text-amber-900">Likely blocker · {radar.barrierForecast.confidence||'preliminary'}</div><p className="mt-2 text-sm">{radar.barrierForecast.risk}</p>{radar.barrierForecast.signals?.length?<p className="mt-2 text-xs text-slate-600">Signals: {radar.barrierForecast.signals.join('; ')}</p>:null}{radar.barrierForecast.mitigation&&<p className="mt-2 text-xs text-emerald-900">Try next: {radar.barrierForecast.mitigation}</p>}</div>}{radar.gaps?.map((g,i)=>{const v=typeof g==='string'?{gap:g,reason:'',nextStep:''}:g;return <div key={i} className="mt-3 rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold">{v.gap}</div>{v.reason&&<p className="mt-1 text-xs text-slate-500">{v.reason}</p>}{v.nextStep&&<p className="mt-1 text-xs text-emerald-800">{v.nextStep}</p>}</div>;})}{radar.nextSteps?.map((v,i)=>{const n=typeof v==='string'?{title:v,reason:''}:v;return <div key={i} className="mt-3 rounded-xl bg-slate-50 p-3"><div className="text-xs font-semibold">{n.title}</div>{n.reason&&<p className="mt-1 text-xs text-slate-500">{n.reason}</p>}</div>;})}{radar.verificationNeeded?.map(v=><p key={v} className="mt-2 text-xs text-slate-500">Needs verification: {v}</p>)}</>}{radarText&&!radar&&<pre className="mt-3 whitespace-pre-wrap break-words text-xs">{radarText}</pre>}{radarText&&<p className="mt-3 rounded-lg bg-slate-50 p-3 text-[10px] text-slate-500">Preliminary guidance only. No validated statistical prediction is claimed.</p>}</section>
-            <section className={card}><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-800"/><h3 className="text-sm font-bold">Actual backend tool trace</h3></div>{tools.length===0?<p className="mt-3 text-xs text-slate-500">No structured tool calls returned for the latest request.</p>:tools.map(t=><div key={t.id} className="mt-2 rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-2 text-xs"><b>{t.action}</b><span>{t.status}</span></div><div className="mt-1 text-[10px] text-slate-500">{t.toolName}</div>{t.result&&<p className="mt-1 break-words text-[10px] text-slate-500">{t.result.slice(0,350)}</p>}{t.details&&<details className="mt-1"><summary className="cursor-pointer text-[10px] text-emerald-800">Inspect returned data</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-[10px]">{JSON.stringify(t.details,null,2)}</pre></details>}</div>)}</section>
+
+          {/* Match Feedback Line */}
+          <div
+            onClick={() => setShowInternshipsModal(true)}
+            className="mt-3 pt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer hover:text-[#1a6682] transition-colors"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#1a6682] shrink-0" />
+            <span>
+              {filteredInternships.length} internships match "{searchQuery || selectedTag || 'roles'}"
+            </span>
           </div>
-        </div>}
-        <section className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center"><div><div className="text-xs font-bold text-slate-800">Fair and honest skill records</div><p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">CV text is extracted in this browser and sent only when you request an AI action. Certificate details are not authenticated automatically. AI-inferred skills stay labelled as inferred. Portfolio feedback is not employer endorsement. Local drafts can be cleared.</p></div><div className="flex gap-2"><button type="button" onClick={onOpenConversation} className={secondary}><Brain className="h-4 w-4"/>Open Sylvia chat</button><button type="button" onClick={clearDraft} className={secondary}><Trash2 className="h-4 w-4"/>Clear draft</button></div></section>
-      </div></div>
+        </div>
+
+        {/* CARD 2: Revamp CV */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <FileText className="w-4.5 h-4.5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Revamp CV</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Get instant feedback, modern templates, and AI-powered improvements.
+              </p>
+            </div>
+
+            {/* Uploaded Box */}
+            <label className="block border-2 border-dashed border-[#8ec0d8] bg-[#f4f9fc] hover:bg-[#eaf4fa] rounded-xl p-2.5 text-center cursor-pointer transition-colors">
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt"
+                className="sr-only"
+                onChange={e => {
+                  if (e.target.files?.[0]) {
+                    setCvFileName(e.target.files[0].name);
+                  }
+                }}
+              />
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#1a6682]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#1a6682]" />
+                <span>{cvFileName} uploaded</span>
+              </div>
+            </label>
+
+            {/* Action Button */}
+            <button
+              onClick={handleRevampCVWithAI}
+              className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-all hover:border-slate-300"
+            >
+              <Pencil className="w-3.5 h-3.5 text-[#1a6682]" />
+              <span>Revamp with AI</span>
+            </button>
+          </div>
+
+          {/* Private & Secure text */}
+          <div className="mt-3 pt-1 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium">
+            <Lock className="w-3 h-3 text-slate-400" />
+            <span>Private & secure</span>
+          </div>
+        </div>
+
+        {/* CARD 3: Access courses */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Access courses</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Upskill with expert-led courses. New content added weekly.
+              </p>
+            </div>
+
+            {/* Course List Items */}
+            <div className="space-y-1.5 pt-0.5">
+              {courses.slice(0, 3).map(course => (
+                <div
+                  key={course.id}
+                  onClick={() => {
+                    setSelectedCourse(course);
+                    setShowCoursesModal(true);
+                  }}
+                  className="group p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 transition-all flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-lg bg-[#eef6fa] text-[#1a6682] flex items-center justify-center shrink-0">
+                      {course.icon === 'play' && <Play className="w-3 h-3 fill-current ml-0.5" />}
+                      {course.icon === 'chat' && <MessageSquare className="w-3 h-3" />}
+                      {course.icon === 'code' && <Code className="w-3 h-3" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-[#1a6682] transition-colors">
+                        {course.title}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
+                        <span>⏱ {course.duration}</span>
+                        <span>·</span>
+                        <span>{course.level}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#1a6682] group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-3 pt-1">
+            <button
+              onClick={() => setShowCoursesModal(true)}
+              className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-slate-300 shadow-xs"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#1a6682]" />
+              <span>Browse all 32 courses</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 2: 4 CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        {/* CARD 4: Skill gap */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+                <PieChart className="w-4.5 h-4.5 stroke-[2.2]" />
+              </div>
+              {/* View Mode Toggle Button */}
+              <div className="inline-flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg text-[10px] font-semibold">
+                <button
+                  onClick={() => setSkillGapViewMode('bars')}
+                  className={`px-2 py-0.5 rounded-md transition-all ${
+                    skillGapViewMode === 'bars'
+                      ? 'bg-white text-[#1a6682] shadow-xs font-bold'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="Progress Bars View"
+                >
+                  Bars
+                </button>
+                <button
+                  onClick={() => setSkillGapViewMode('radar')}
+                  className={`px-2 py-0.5 rounded-md transition-all ${
+                    skillGapViewMode === 'radar'
+                      ? 'bg-white text-[#1a6682] shadow-xs font-bold'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="D3 Radar Chart View"
+                >
+                  Radar
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Skill gap</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                See how your skills match target roles.
+              </p>
+            </div>
+
+            {skillGapViewMode === 'radar' ? (
+              <div className="pt-0 flex justify-center">
+                <SkillGapRadarChart
+                  compact={true}
+                  selectedRoleId={targetRoleId}
+                  onSelectRole={setTargetRoleId}
+                  onSelectCourse={courseTitle => {
+                    const matched = courses.find(
+                      c =>
+                        c.title.toLowerCase().includes(courseTitle.toLowerCase()) ||
+                        courseTitle.toLowerCase().includes(c.title.toLowerCase())
+                    );
+                    if (matched) {
+                      setSelectedCourse(matched);
+                      setShowCoursesModal(true);
+                    } else {
+                      setShowCoursesModal(true);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2 pt-1">
+                {skills.map(skill => (
+                  <div key={skill.name} className="flex items-center justify-between gap-2.5 text-xs">
+                    <span className="font-semibold text-slate-700 w-12 shrink-0 text-[11px] sm:text-xs">{skill.name}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-[#1a6682] rounded-full transition-all duration-700"
+                        style={{ width: `${skill.percentage}%` }}
+                      />
+                    </div>
+                    <span className="font-bold text-slate-700 w-8 text-right shrink-0 text-[11px] sm:text-xs">
+                      {skill.percentage}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-3 pt-1">
+            <button
+              onClick={() => setShowSkillGapModal(true)}
+              disabled={isReanalyzing}
+              className="w-full py-2 px-3 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isReanalyzing ? 'animate-spin' : ''}`} />
+              <span>{isReanalyzing ? 'Re-analyzing...' : 'Re-analyze'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 5: Interview practice */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <Mic className="w-4.5 h-4.5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Interview practice</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Answer common questions and get tips.
+              </p>
+            </div>
+
+            {/* Question Callout */}
+            <div
+              onClick={() => setShowAnswerBox(true)}
+              className="p-2.5 rounded-xl bg-[#f0f6fa] border-l-3 border-[#1a6682] cursor-pointer hover:bg-[#e6f1f7] transition-all group"
+              title="Click to practice this question"
+            >
+              <p className="text-xs font-medium text-slate-800 leading-snug italic group-hover:text-[#1a6682] transition-colors">
+                "{currentQuestion.question}"
+              </p>
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-3 pt-1">
+            <button
+              onClick={handleNextQuestion}
+              className="w-full py-2 px-3 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Next question</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 6: Applications */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <ClipboardList className="w-4.5 h-4.5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Applications</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Track your application stages.
+              </p>
+            </div>
+
+            {/* Status Indicator Legend */}
+            <div className="flex items-center gap-2 text-[9px] text-slate-500 font-medium overflow-x-auto pb-0.5">
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                Applied
+              </span>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                Screened
+              </span>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Interview
+              </span>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                Offer
+              </span>
+            </div>
+
+            {/* Application List Items */}
+            <div className="space-y-1.5 pt-0.5">
+              {applications.slice(0, 3).map(app => {
+                const badgeStyles =
+                  {
+                    Interview: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    Review: 'bg-amber-50 text-amber-700 border-amber-200',
+                    Offer: 'bg-sky-50 text-sky-700 border-sky-200',
+                    Applied: 'bg-slate-100 text-slate-700 border-slate-200',
+                    Screened: 'bg-amber-50 text-amber-700 border-amber-200',
+                  }[app.status] || 'bg-slate-100 text-slate-700 border-slate-200';
+
+                return (
+                  <div
+                    key={app.id}
+                    className="flex items-center justify-between p-1.5 rounded-lg border border-slate-100 bg-white"
+                  >
+                    <div className="min-w-0 pr-1.5">
+                      <p className="text-[11px] sm:text-xs font-bold text-slate-800 truncate">
+                        {app.role} · {app.company}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border shrink-0 ${badgeStyles}`}
+                    >
+                      {app.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-3 pt-1">
+            <button
+              onClick={() => setShowLogAppModal(true)}
+              className="w-full py-2 px-3 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Log application</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 7: Your roadmap */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+          <div className="space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+              <Milestone className="w-4.5 h-4.5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Your roadmap</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                Next steps to land your dream role.
+              </p>
+            </div>
+
+            {/* Roadmap Checklist */}
+            <div className="space-y-1.5 pt-0.5 text-xs">
+              {roadmap.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => handleToggleRoadmap(item.id)}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  {item.completed ? (
+                    <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </div>
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-slate-400 mx-[3px] shrink-0" />
+                  )}
+                  <span
+                    className={`truncate text-[11px] sm:text-xs transition-colors ${
+                      item.completed
+                        ? 'text-slate-400 line-through font-normal'
+                        : 'text-slate-700 font-medium group-hover:text-slate-900'
+                    }`}
+                  >
+                    {item.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-3 pt-1">
+            <button
+              onClick={handleUpdateRoadmapProgress}
+              className="w-full py-2 px-3 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              <span>Update progress</span>
+            </button>
+            {roadmapSuccessMsg && (
+              <p className="text-[10px] text-center text-emerald-600 font-medium mt-1 animate-in fade-in">
+                Roadmap synced with Sylvia Mission Control!
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BOTTOM FOOTER STATUS PILLS */}
+      <div className="w-full bg-white rounded-xl px-4 py-2.5 sm:py-3 border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-slate-600">
+        <div className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 rounded-full bg-[#1a6682] text-white flex items-center justify-center text-[8px] font-bold">
+            ✓
+          </div>
+          <span className="text-slate-700 font-medium text-xs">
+            <span className="font-mono tabular-nums font-bold">5</span> applications this week
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <FileText className="w-3.5 h-3.5 text-[#1a6682]" />
+          <span className="text-slate-700 font-medium text-xs">
+            CV score: <strong className="text-slate-900 font-bold font-mono tabular-nums">{cvScore}</strong> / 100
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <GraduationCap className="w-3.5 h-3.5 text-[#1a6682]" />
+          <span className="text-slate-700 font-medium text-xs">
+            <span className="font-mono tabular-nums font-bold">{inProgressCoursesCount}</span> courses in progress
+          </span>
+        </div>
+      </div>
+
+      {/* ===================== MODALS ===================== */}
+
+      {/* 1. INTERNSHIPS MODAL */}
+      {showInternshipsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Curated Internships</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Showing {filteredInternships.length} matches for "{searchQuery || 'all roles'}"
+                </p>
+              </div>
+              <button
+                onClick={() => setShowInternshipsModal(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="space-y-3">
+              {filteredInternships.map(internship => (
+                <div
+                  key={internship.id}
+                  className="p-4 rounded-2xl border border-slate-200/90 hover:border-[#1a6682] bg-white transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-sm text-slate-900">{internship.title}</h4>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1a6682]/10 text-[#1a6682]">
+                        {internship.matchRate}% Match
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 font-medium">
+                      {internship.company} · {internship.location} · {internship.stipend}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {internship.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex sm:flex-col gap-2 shrink-0">
+                    <button
+                      onClick={() => handleQuickApplyFromModal(internship)}
+                      className="px-4 py-2 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold shadow-xs"
+                    >
+                      Quick Apply
+                    </button>
+                    <button
+                      onClick={() => setShowInternshipsModal(false)}
+                      className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. REVAMP CV MODAL */}
+      {showRevampModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 text-[#1a6682] flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">AI CV Revamp Studio</h3>
+                  <p className="text-xs text-slate-500">Document: {cvFileName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRevampModal(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Score Ring */}
+            <div className="p-4 rounded-2xl bg-[#f0f6fa] border border-[#d2e4f0] flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">
+                  ATS Readiness Score
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-[#1a6682]">{cvScore}</span>
+                  <span className="text-sm font-semibold text-slate-500">/ 100</span>
+                </div>
+                <p className="text-xs text-emerald-700 font-medium mt-1">
+                  ✓ High match for {searchQuery || 'Product Design'} roles
+                </p>
+              </div>
+              <div className="text-right">
+                <button
+                  onClick={handleRevampCVWithAI}
+                  disabled={isRevamping}
+                  className="px-3.5 py-1.5 rounded-xl bg-white border border-[#1a6682] text-[#1a6682] hover:bg-[#1a6682] hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isRevamping ? 'animate-spin' : ''}`} />
+                  <span>Re-evaluate</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback Content */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs leading-relaxed text-slate-800 space-y-2">
+              {isRevamping ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-3">
+                  <LoaderCircle className="w-6 h-6 animate-spin text-[#1a6682]" />
+                  <p className="font-semibold text-slate-600">Sylvia is analyzing ATS keywords & impact metrics...</p>
+                </div>
+              ) : (
+                <div className="prose prose-xs max-w-none whitespace-pre-line">
+                  {revampFeedback}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowRevampModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold"
+              >
+                Apply Improvements
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. COURSES MODAL */}
+      {showCoursesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Career Skill Courses</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Curated learning paths for youth work readiness and employment
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCoursesModal(false);
+                  setSelectedCourse(null);
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {selectedCourse ? (
+              <div className="space-y-4">
+                <button
+                  onClick={() => setSelectedCourse(null)}
+                  className="text-xs text-[#1a6682] font-semibold flex items-center gap-1 hover:underline"
+                >
+                  ← Back to all courses
+                </button>
+                <div className="p-5 rounded-2xl bg-[#f0f6fa] border border-[#d2e4f0] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#1a6682] uppercase tracking-wide">
+                      {selectedCourse.level} Course
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">⏱ {selectedCourse.duration}</span>
+                  </div>
+                  <h4 className="text-xl font-bold text-slate-900">{selectedCourse.title}</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">{selectedCourse.description}</p>
+                  <div className="pt-2">
+                    <div className="flex justify-between text-xs mb-1 font-semibold text-slate-700">
+                      <span>Progress</span>
+                      <span>{selectedCourse.progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full bg-[#1a6682] rounded-full transition-all"
+                        style={{ width: `${selectedCourse.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => {
+                      setCourses(prev =>
+                        prev.map(c =>
+                          c.id === selectedCourse.id
+                            ? { ...c, enrolled: true, progress: Math.min(100, c.progress + 25) }
+                            : c
+                        )
+                      );
+                      setSelectedCourse(prev =>
+                        prev ? { ...prev, enrolled: true, progress: Math.min(100, prev.progress + 25) } : null
+                      );
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold"
+                  >
+                    {selectedCourse.progress > 0 ? 'Continue Lesson (+25%)' : 'Enroll & Start Course'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {courses.map(course => (
+                  <div
+                    key={course.id}
+                    onClick={() => setSelectedCourse(course)}
+                    className="p-4 rounded-2xl border border-slate-200 hover:border-[#1a6682] bg-white transition-all cursor-pointer flex flex-col justify-between space-y-3"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                          {course.level}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">⏱ {course.duration}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">{course.title}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                        {course.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <span className="text-xs text-[#1a6682] font-semibold">
+                        {course.enrolled ? `${course.progress}% Completed` : 'Free Access'}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-slate-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. LOG APPLICATION MODAL */}
+      {showLogAppModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <form
+            onSubmit={handleAddApplication}
+            className="bg-white rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-bold text-slate-900">Log New Application</h3>
+              <button
+                type="button"
+                onClick={() => setShowLogAppModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Company Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Spotify, Figma, Takealot..."
+                  value={newCompany}
+                  onChange={e => setNewCompany(e.target.value)}
+                  className="w-full p-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Role Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. UX Designer Intern..."
+                  value={newRole}
+                  onChange={e => setNewRole(e.target.value)}
+                  className="w-full p-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Stage</label>
+                <select
+                  value={newStatus}
+                  onChange={e => setNewStatus(e.target.value as any)}
+                  className="w-full p-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682] bg-white"
+                >
+                  <option value="Applied">Applied</option>
+                  <option value="Screened">Screened</option>
+                  <option value="Interview">Interview</option>
+                  <option value="Offer">Offer</option>
+                  <option value="Review">Review</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLogAppModal(false)}
+                className="px-4 py-2 text-xs rounded-xl border border-slate-200 text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-xs rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white font-semibold shadow-xs"
+              >
+                Log Application
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 5. SKILL GAP RE-ANALYSIS & D3 RADAR DIAGNOSTIC MODAL */}
+      {showSkillGapModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+                  <PieChart className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Skill Gap Diagnostic Studio</h3>
+                  <p className="text-xs text-slate-500">
+                    D3 radial analysis of your profile versus industry benchmarks
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSkillGapModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Role benchmarks switcher & re-analyze trigger */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">Target Role:</span>
+                <div className="inline-flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                  {ROLE_BENCHMARKS.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setTargetRoleId(r.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        targetRoleId === r.id
+                          ? 'bg-[#1a6682] text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {r.roleName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleReanalyzeSkills}
+                disabled={isReanalyzing}
+                className="px-3.5 py-1.5 rounded-xl bg-white border border-[#1a6682] text-[#1a6682] hover:bg-[#1a6682] hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isReanalyzing ? 'animate-spin' : ''}`} />
+                <span>{isReanalyzing ? 'Re-calculating...' : 'Refresh AI Diagnostic'}</span>
+              </button>
+            </div>
+
+            {/* D3 Radar Chart Container */}
+            <div className="p-4 rounded-3xl bg-[#fcfdfe] border border-slate-200/80 flex flex-col items-center">
+              <SkillGapRadarChart
+                compact={false}
+                selectedRoleId={targetRoleId}
+                onSelectRole={setTargetRoleId}
+                onSelectCourse={courseTitle => {
+                  setShowSkillGapModal(false);
+                  const matched = courses.find(
+                    c =>
+                      c.title.toLowerCase().includes(courseTitle.toLowerCase()) ||
+                      courseTitle.toLowerCase().includes(c.title.toLowerCase())
+                  );
+                  if (matched) {
+                    setSelectedCourse(matched);
+                    setShowCoursesModal(true);
+                  } else {
+                    setShowCoursesModal(true);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Detailed Competency Gap Table */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Competency Breakdown & Course Pathways
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(ROLE_BENCHMARKS.find(r => r.id === targetRoleId) || ROLE_BENCHMARKS[0]).skills.map(
+                  sk => {
+                    const delta = sk.current - sk.benchmark;
+                    const isExceeding = delta >= 0;
+                    return (
+                      <div
+                        key={sk.key}
+                        className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between gap-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-slate-800">{sk.axis}</span>
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              isExceeding
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {isExceeding ? `+${delta}% match` : `${delta}% gap`}
+                          </span>
+                        </div>
+
+                        {/* Visual Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                            <span>Profile: {sk.current}%</span>
+                            <span>Target: {sk.benchmark}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                              className="h-full bg-[#1a6682] rounded-full"
+                              style={{ width: `${sk.current}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Direct Course Recommendation */}
+                        <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 truncate mr-1">
+                            Course: <strong className="text-slate-700">{sk.courseSuggestion}</strong>
+                          </span>
+                          <button
+                            onClick={() => {
+                              setShowSkillGapModal(false);
+                              const matched = courses.find(
+                                c =>
+                                  c.title.toLowerCase().includes(sk.courseSuggestion.toLowerCase()) ||
+                                  sk.courseSuggestion.toLowerCase().includes(c.title.toLowerCase())
+                              );
+                              if (matched) {
+                                setSelectedCourse(matched);
+                                setShowCoursesModal(true);
+                              } else {
+                                setShowCoursesModal(true);
+                              }
+                            }}
+                            className="text-[#1a6682] hover:text-[#145b77] font-semibold shrink-0 hover:underline"
+                          >
+                            Enroll →
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+
+            {/* Strategic Advice Banner */}
+            <div className="p-3.5 bg-sky-50 border border-sky-200 rounded-2xl text-xs text-sky-900 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-[#1a6682] shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Sylvia Readiness Insight:</p>
+                <p className="text-sky-800 mt-0.5 leading-relaxed">
+                  Closing the <strong>Data & Metrics (-12%)</strong> and{' '}
+                  <strong>User Research (-2%)</strong> gaps will boost your match score for top-tier{' '}
+                  {ROLE_BENCHMARKS.find(r => r.id === targetRoleId)?.roleName} internships from 82% to 94%.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowSkillGapModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold shadow-xs"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. INTERVIEW PRACTICE MODAL */}
+      {showAnswerBox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#eef6fa] text-[#1a6682] flex items-center justify-center">
+                  <Mic className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Interview Practice</h3>
+                  <span className="text-[10px] font-semibold text-[#1a6682] uppercase tracking-wider">
+                    {currentQuestion.category} Question
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAnswerBox(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#f0f6fa] border-l-4 border-[#1a6682]">
+              <p className="text-xs font-semibold text-slate-800 italic leading-relaxed">
+                "{currentQuestion.question}"
+              </p>
+              <p className="text-[11px] text-slate-500 mt-2 font-normal">
+                💡 <strong>Sylvia Tip:</strong> {currentQuestion.tip}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700">Your Response:</label>
+              <textarea
+                rows={4}
+                value={practiceAnswer}
+                onChange={e => setPracticeAnswer(e.target.value)}
+                placeholder="Draft or dictate your response here (e.g. using the STAR framework)..."
+                className="w-full p-3 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682] bg-slate-50/50"
+              />
+            </div>
+
+            {aiCoachingTip && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 leading-relaxed">
+                <p className="font-bold flex items-center gap-1.5 mb-1">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Sylvia's Feedback & Coaching:</span>
+                </p>
+                <p className="text-[11px] whitespace-pre-line text-emerald-800">{aiCoachingTip}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                onClick={() => setShowAnswerBox(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleGetInterviewFeedback}
+                disabled={isCoaching || !practiceAnswer.trim()}
+                className="px-5 py-2 bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {isCoaching ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span>Get Sylvia Feedback</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
- );
+  );
 };
+
 export default CareerBridgeWorkspace;

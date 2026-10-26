@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside
       id="sylvia-navigation-sidebar"
       aria-label="Sylvia Command Sidebar"
-      className="w-64 h-full flex flex-col glass-panel border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl z-20 select-none"
+      className="w-64 h-full flex flex-col glass-panel border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl z-20"
     >
       {/* Top Header & New Conversation */}
       <div className="p-4 border-b border-slate-800/60 flex items-center justify-between gap-2">

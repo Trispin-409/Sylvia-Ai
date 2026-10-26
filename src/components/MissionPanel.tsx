@@ -11,6 +11,7 @@ import {
   Sparkles,
   Maximize2,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface MissionPanelProps {
   mission: Mission;
@@ -37,8 +38,10 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
     }
   };
 
+  const missionSummaryText = `Mission: ${mission.title}\nObjective: ${mission.objective}\nProgress: ${mission.progress}%\nSteps:\n${mission.steps.map(s => `${s.number} [${s.status}] ${s.title}${s.specialist ? ` (${s.specialist})` : ''}`).join('\n')}${mission.nextAction ? `\nNext Action: ${mission.nextAction}` : ''}`;
+
   return (
-    <div id="sylvia-mission-widget" className="p-4 space-y-4 text-xs select-none">
+    <div id="sylvia-mission-widget" className="p-4 space-y-4 text-xs select-text">
       {/* Header with Title & Fullscreen toggle */}
       <div className="flex items-start justify-between pb-3 border-b border-slate-800">
         <div>
@@ -50,24 +53,38 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
               {mission.priority} PRIORITY
             </span>
           </div>
-          <h3 className="text-sm font-display font-bold text-slate-100">{mission.title}</h3>
+          <h3 className="text-sm font-display font-bold text-slate-100 select-text">{mission.title}</h3>
         </div>
 
-        {onOpenFullMissionControl && (
-          <button
-            onClick={onOpenFullMissionControl}
-            title="Expand Full Mission Control"
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          <CopyButton
+            text={missionSummaryText}
+            size="xs"
+            title="Copy full mission overview"
+          />
+          {onOpenFullMissionControl && (
+            <button
+              onClick={onOpenFullMissionControl}
+              title="Expand Full Mission Control"
+              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Objective */}
       <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 font-sans">
-        <div className="text-[10px] font-mono-code text-slate-400 uppercase mb-1">Objective</div>
-        <p className="text-slate-200 leading-relaxed">{mission.objective}</p>
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-[10px] font-mono-code text-slate-400 uppercase">Objective</div>
+          <CopyButton
+            text={mission.objective}
+            size="xs"
+            title="Copy objective"
+          />
+        </div>
+        <p className="text-slate-200 leading-relaxed select-text">{mission.objective}</p>
       </div>
 
       {/* Progress Bar */}
@@ -97,7 +114,7 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
           ) : mission.steps.map(step => (
             <div
               key={step.id}
-              className={`p-2.5 rounded-lg border transition-all ${
+              className={`group p-2.5 rounded-lg border transition-all select-text ${
                 step.status === 'in_progress'
                   ? 'bg-indigo-950/40 border-indigo-500/50 shadow-md shadow-indigo-950/20'
                   : step.status === 'completed'
@@ -105,8 +122,8 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
                   : 'bg-slate-950/30 border-slate-900'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <button
                     onClick={() => {
                       const nextStatus: MissionStepStatus =
@@ -117,24 +134,32 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
                           : 'completed';
                       onUpdateStepStatus(step.id, nextStatus);
                     }}
-                    className="hover:scale-110 transition-transform"
+                    className="hover:scale-110 transition-transform shrink-0"
                   >
                     {getStatusIcon(step.status)}
                   </button>
 
-                  <div>
-                    <div className="font-medium text-slate-200 flex items-center gap-1.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-slate-200 flex items-center gap-1.5 flex-wrap select-text">
                       <span className="font-mono-code text-[11px] text-slate-400">{step.number}</span>
-                      <span>{step.title}</span>
+                      <span className="select-text">{step.title}</span>
                     </div>
                   </div>
                 </div>
 
-                {step.specialist && (
-                  <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-indigo-300 border border-slate-800">
-                    {step.specialist}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {step.specialist && (
+                    <span className="text-[10px] font-mono-code px-1.5 py-0.5 rounded bg-slate-900 text-indigo-300 border border-slate-800">
+                      {step.specialist}
+                    </span>
+                  )}
+                  <CopyButton
+                    text={`${step.number} ${step.title}${step.specialist ? ` [${step.specialist}]` : ''} (${step.status})`}
+                    size="xs"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy step"
+                  />
+                </div>
               </div>
             </div>
           ))}
@@ -144,11 +169,18 @@ export const MissionPanel: React.FC<MissionPanelProps> = ({
       {/* Next Action Callout */}
       {mission.nextAction && (
         <div className="p-3 rounded-xl bg-gradient-to-tr from-indigo-950/70 to-slate-900 border border-indigo-500/30 text-xs">
-          <div className="flex items-center gap-1.5 text-indigo-300 font-mono-code font-semibold text-[10px] uppercase mb-1">
-            <Sparkles className="w-3 h-3 text-indigo-400" />
-            Next Executive Action
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5 text-indigo-300 font-mono-code font-semibold text-[10px] uppercase">
+              <Sparkles className="w-3 h-3 text-indigo-400" />
+              Next Executive Action
+            </div>
+            <CopyButton
+              text={mission.nextAction}
+              size="xs"
+              title="Copy next action"
+            />
           </div>
-          <div className="text-slate-100 font-medium leading-relaxed">{mission.nextAction}</div>
+          <div className="text-slate-100 font-medium leading-relaxed select-text">{mission.nextAction}</div>
         </div>
       )}
     </div>

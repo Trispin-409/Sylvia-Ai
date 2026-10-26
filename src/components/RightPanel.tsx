@@ -33,7 +33,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   return (
     <div
       id="sylvia-right-intelligence-panel"
-      className="w-full min-w-0 h-full glass-panel border-l border-emerald-900/50 bg-[#020b06]/90 backdrop-blur-xl flex flex-col z-20 select-none"
+      className="w-full min-w-0 h-full glass-panel border-l border-emerald-900/50 bg-[#020b06]/90 backdrop-blur-xl flex flex-col z-20 select-text"
     >
       {/* Tab Switcher Header */}
       <div className="p-3 border-b border-slate-800/80 flex items-center justify-between gap-2">

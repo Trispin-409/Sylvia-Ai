@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface MissionControlProps {
   mission: Mission;
@@ -30,10 +31,21 @@ export const MissionControl: React.FC<MissionControlProps> = ({
   const inProgressCount = mission.steps.filter(s => s.status === 'in_progress').length;
   const pendingCount = mission.steps.filter(s => s.status === 'pending').length;
 
+  const missionFullPlanText = `=== MISSION CONTROL DIRECTIVE ===
+Title: ${mission.title}
+Priority: ${mission.priority}
+Objective: ${mission.objective}
+Progress: ${mission.progress}% (${completedCount} completed, ${inProgressCount} in progress, ${pendingCount} pending)
+Next Action: ${mission.nextAction || 'None'}
+
+Phase Roadmap:
+${mission.steps.map(s => `${s.number}. [${s.status.toUpperCase()}] ${s.title}${s.specialist ? ` (Specialist: ${s.specialist})` : ''}${s.description ? `\n   ${s.description}` : ''}`).join('\n')}
+`;
+
   return (
     <div
       id="sylvia-fullscreen-mission-control"
-      className="relative w-full h-full flex flex-col p-6 md:p-10 overflow-y-auto z-30 select-none"
+      className="relative w-full h-full flex flex-col p-6 md:p-10 overflow-y-auto z-30 select-text"
     >
       {/* Top Bar with Return Button */}
       <div className="flex items-center justify-between pb-6 border-b border-slate-800/80">
@@ -56,16 +68,25 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                 {mission.id === 'no-active-mission' ? 'NO ACTIVE MISSION' : 'ACTIVE PHASE'}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-100 mt-0.5">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-100 mt-0.5 select-text">
               {mission.title}
             </h1>
           </div>
         </div>
 
-        {/* Priority Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-300 font-mono-code text-xs">
-          <Target className="w-4 h-4 text-amber-400" />
-          <span>{mission.priority} PRIORITY DIRECTIVE</span>
+        {/* Priority Badge & Full Plan Copy */}
+        <div className="flex items-center gap-2.5">
+          <CopyButton
+            text={missionFullPlanText}
+            label="Copy Plan"
+            showLabel
+            size="sm"
+            title="Copy full mission roadmap and details"
+          />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-300 font-mono-code text-xs">
+            <Target className="w-4 h-4 text-amber-400" />
+            <span>{mission.priority} PRIORITY DIRECTIVE</span>
+          </div>
         </div>
       </div>
 
@@ -75,10 +96,17 @@ export const MissionControl: React.FC<MissionControlProps> = ({
         <div className="lg:col-span-5 space-y-6">
           {/* Mission Objective Card */}
           <div className="glass-panel-elevated p-6 rounded-2xl border border-slate-800">
-            <div className="text-xs font-mono-code text-slate-400 uppercase tracking-wider mb-2">
-              Strategic Objective
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-mono-code text-slate-400 uppercase tracking-wider">
+                Strategic Objective
+              </div>
+              <CopyButton
+                text={mission.objective}
+                size="xs"
+                title="Copy strategic objective"
+              />
             </div>
-            <p className="text-base text-slate-100 font-sans leading-relaxed">
+            <p className="text-base text-slate-100 font-sans leading-relaxed select-text">
               "{mission.objective}"
             </p>
           </div>
@@ -137,11 +165,18 @@ export const MissionControl: React.FC<MissionControlProps> = ({
           {/* Next Executive Action Banner */}
           {mission.nextAction && (
             <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/80 via-slate-900 to-slate-950 border border-indigo-500/40 shadow-xl shadow-indigo-950/30">
-              <div className="flex items-center gap-2 text-indigo-300 font-mono-code text-xs font-bold uppercase mb-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                Next Executive Action
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 text-indigo-300 font-mono-code text-xs font-bold uppercase">
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  Next Executive Action
+                </div>
+                <CopyButton
+                  text={mission.nextAction}
+                  size="xs"
+                  title="Copy next action"
+                />
               </div>
-              <p className="text-sm text-slate-100 font-medium leading-relaxed">
+              <p className="text-sm text-slate-100 font-medium leading-relaxed select-text">
                 {mission.nextAction}
               </p>
             </div>
@@ -168,12 +203,13 @@ export const MissionControl: React.FC<MissionControlProps> = ({
               const isCompleted = step.status === 'completed';
               const isInProgress = step.status === 'in_progress';
               const isBlocked = step.status === 'blocked';
+              const stepCopyText = `${step.number} ${step.title}\nStatus: ${step.status}${step.specialist ? `\nSpecialist: ${step.specialist}` : ''}${step.description ? `\nDescription: ${step.description}` : ''}`;
 
               return (
                 <motion.div
                   key={step.id}
                   layout
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`group p-4 rounded-xl border transition-all select-text ${
                     isInProgress
                       ? 'glass-panel-elevated border-cyan-500/50 shadow-xl shadow-cyan-950/20'
                       : isCompleted
@@ -183,8 +219,8 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                       : 'bg-slate-950/30 border-slate-800/50'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3.5 flex-1 min-w-0">
                       {/* Interactive Status Toggle */}
                       <button
                         onClick={() => {
@@ -196,7 +232,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                               : 'completed';
                           onUpdateStepStatus(step.id, next);
                         }}
-                        className="mt-0.5 hover:scale-110 transition-transform"
+                        className="mt-0.5 hover:scale-110 transition-transform shrink-0"
                       >
                         {isCompleted && (
                           <div className="w-6 h-6 rounded-full bg-emerald-950 border border-emerald-400 flex items-center justify-center text-emerald-400">
@@ -219,30 +255,38 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                       </button>
 
                       {/* Step Details */}
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-mono-code font-bold text-xs text-indigo-400">
                             {step.number}
                           </span>
-                          <h4 className="text-sm font-display font-semibold text-slate-100">
+                          <h4 className="text-sm font-display font-semibold text-slate-100 select-text">
                             {step.title}
                           </h4>
                         </div>
 
                         {step.description && (
-                          <p className="text-xs text-slate-400 mt-1 leading-relaxed font-sans">
+                          <p className="text-xs text-slate-400 mt-1 leading-relaxed font-sans select-text">
                             {step.description}
                           </p>
                         )}
                       </div>
                     </div>
 
-                    {/* Assigned Specialist Agent Badge */}
-                    {step.specialist && (
-                      <span className="text-[11px] font-mono-code px-2 py-1 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-500/30 whitespace-nowrap">
-                        {step.specialist}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Assigned Specialist Agent Badge */}
+                      {step.specialist && (
+                        <span className="text-[11px] font-mono-code px-2 py-1 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-500/30 whitespace-nowrap">
+                          {step.specialist}
+                        </span>
+                      )}
+                      <CopyButton
+                        text={stepCopyText}
+                        size="xs"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Copy step details"
+                      />
+                    </div>
                   </div>
                 </motion.div>
               );

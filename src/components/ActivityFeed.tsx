@@ -13,6 +13,7 @@ import {
   Brain,
   ShieldCheck,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface ActivityFeedProps {
   activities: ActivityEvent[];
@@ -36,7 +37,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
   };
 
   return (
-    <div id="sylvia-activity-feed-widget" className="p-4 space-y-3 text-xs select-none">
+    <div id="sylvia-activity-feed-widget" className="p-4 space-y-3 text-xs select-text">
       <div className="flex items-center justify-between pb-2 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-emerald-400" />
@@ -49,38 +50,49 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
 
       <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
-          {activities.map(evt => (
-            <motion.div
-              key={evt.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/90 transition-all flex items-start gap-2.5"
-            >
-              <div className="mt-0.5">{getStatusBadge(evt.status)}</div>
+          {activities.map(evt => {
+            const copyContent = `[${evt.timestamp}] ${evt.agent}: ${evt.action}${evt.tool ? ` (TOOL: ${evt.tool})` : ''} - Status: ${evt.status}`;
+            return (
+              <motion.div
+                key={evt.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                className="group p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/90 transition-all flex items-start gap-2.5 relative"
+              >
+                <div className="mt-0.5">{getStatusBadge(evt.status)}</div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <span className="font-mono-code font-semibold text-[11px] text-indigo-300 truncate">
-                    {evt.agent}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono-code whitespace-nowrap">
-                    {evt.timestamp}
-                  </span>
-                </div>
-
-                <p className="text-slate-200 font-sans text-xs leading-relaxed">{evt.action}</p>
-
-                {evt.tool && (
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-slate-900 text-cyan-300 border border-slate-800">
-                      TOOL: {evt.tool}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="font-mono-code font-semibold text-[11px] text-indigo-300 truncate">
+                      {evt.agent}
                     </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400 font-mono-code whitespace-nowrap">
+                        {evt.timestamp}
+                      </span>
+                      <CopyButton
+                        text={copyContent}
+                        size="xs"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Copy activity log"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+
+                  <p className="text-slate-200 font-sans text-xs leading-relaxed select-text">{evt.action}</p>
+
+                  {evt.tool && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-[9px] font-mono-code px-1.5 py-0.2 rounded bg-slate-900 text-cyan-300 border border-slate-800">
+                        TOOL: {evt.tool}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>

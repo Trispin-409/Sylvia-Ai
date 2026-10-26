@@ -17,6 +17,7 @@ import {
   X,
   Play,
 } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface SpecialistGraphProps {
   specialists: SpecialistAgent[];
@@ -250,7 +251,7 @@ export const SpecialistGraph: React.FC<SpecialistGraphProps> = ({
             initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg glass-panel-elevated p-5 rounded-xl border border-indigo-500/30 z-50 text-xs text-slate-200"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg glass-panel-elevated p-5 rounded-xl border border-indigo-500/30 z-50 text-xs text-slate-200 select-text"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-3">
@@ -258,7 +259,7 @@ export const SpecialistGraph: React.FC<SpecialistGraphProps> = ({
                   {getIcon(selectedSpecialist.iconName)}
                 </div>
                 <div>
-                  <h3 className="text-sm font-display font-bold text-slate-100 flex items-center gap-2">
+                  <h3 className="text-sm font-display font-bold text-slate-100 flex items-center gap-2 select-text">
                     {selectedSpecialist.name}
                     <span
                       className={`text-[10px] font-mono-code px-2 py-0.5 rounded-full border ${
@@ -270,16 +271,23 @@ export const SpecialistGraph: React.FC<SpecialistGraphProps> = ({
                       {selectedSpecialist.connected ? 'Online Specialist' : 'Coming Next'}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-slate-400">{selectedSpecialist.role}</p>
+                  <p className="text-[11px] text-slate-400 select-text">{selectedSpecialist.role}</p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedSpecialist(null)}
-                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <CopyButton
+                  text={`${selectedSpecialist.name} (${selectedSpecialist.role})\n${selectedSpecialist.description}\nSkills: ${selectedSpecialist.skills.join(', ')}`}
+                  size="xs"
+                  title="Copy specialist profile"
+                />
+                <button
+                  onClick={() => setSelectedSpecialist(null)}
+                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <p className="py-3 text-slate-300 leading-relaxed">
