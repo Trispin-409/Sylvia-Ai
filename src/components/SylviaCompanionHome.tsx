@@ -123,13 +123,9 @@ const quickActions: Array<{
   view: NavView;
   tone: string;
 }> = [
-  { label: 'Missions', description: 'Plans and next steps', icon: <Target className="h-5 w-5" />, view: 'mission-control', tone: 'text-amber-200 bg-amber-400/10 border-amber-400/15' },
-  { label: 'Career Bridge', description: 'Skills, pathways and work-readiness plan', icon: <BriefcaseBusiness className="h-5 w-5" />, view: 'career', tone: 'text-emerald-200 bg-emerald-400/10 border-emerald-400/15' },
-  { label: 'Email', description: 'Inbox and drafts', icon: <Mail className="h-5 w-5" />, view: 'workspace-gmail', tone: 'text-rose-200 bg-rose-400/10 border-rose-400/15' },
-  { label: 'Calendar', description: 'Schedule and events', icon: <CalendarDays className="h-5 w-5" />, view: 'workspace-calendar', tone: 'text-sky-200 bg-sky-400/10 border-sky-400/15' },
-  { label: 'Memory', description: 'Decision DNA and context', icon: <Brain className="h-5 w-5" />, view: 'memory', tone: 'text-violet-200 bg-violet-400/10 border-violet-400/15' },
-  { label: 'Agents', description: 'Specialists and routing', icon: <Network className="h-5 w-5" />, view: 'specialists', tone: 'text-cyan-200 bg-cyan-400/10 border-cyan-400/15' },
-  { label: 'Activity', description: 'Execution history', icon: <Activity className="h-5 w-5" />, view: 'activity', tone: 'text-emerald-200 bg-emerald-400/10 border-emerald-400/15' },
+  { label: 'Career Bridge', description: 'Jobs, internships, courses and CV support', icon: <BriefcaseBusiness className="h-5 w-5" />, view: 'career', tone: 'text-emerald-200 bg-emerald-400/10 border-emerald-400/15' },
+  { label: 'Email', description: 'Live Gmail inbox and drafts', icon: <Mail className="h-5 w-5" />, view: 'workspace-gmail', tone: 'text-rose-200 bg-rose-400/10 border-rose-400/15' },
+  { label: 'Calendar', description: 'Live calendar and schedule', icon: <CalendarDays className="h-5 w-5" />, view: 'workspace-calendar', tone: 'text-sky-200 bg-sky-400/10 border-sky-400/15' },
 ];
 
 export const SylviaCompanionHome: React.FC<SylviaCompanionHomeProps> = ({
