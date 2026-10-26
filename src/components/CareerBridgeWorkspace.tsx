@@ -80,16 +80,12 @@ interface InternshipItem {
   type: string;
   stipend: string;
   category: 'Design' | 'Marketing' | 'Tech' | 'Remote';
-  matchRate: number;
   tags: string[];
   sourceUrl?: string;
   applicationUrl?: string;
   deadline?: string;
   verificationStatus?: string;
 }
-
-const INITIAL_COURSES: CourseItem[] = [];
-const CURATED_INTERNSHIPS: InternshipItem[] = [];
 
 const INTERVIEW_QUESTIONS = [
   {
@@ -194,29 +190,7 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   const [isCoaching, setIsCoaching] = useState(false);
 
   // 6. Applications state
-  const [applications, setApplications] = useState<ApplicationItem[]>([
-    {
-      id: 'app_1',
-      role: 'UX Intern',
-      company: 'Figma',
-      status: 'Interview',
-      dateApplied: '2026-10-21',
-    },
-    {
-      id: 'app_2',
-      role: 'Product Intern',
-      company: 'Spotify',
-      status: 'Review',
-      dateApplied: '2026-10-22',
-    },
-    {
-      id: 'app_3',
-      role: 'Design Intern',
-      company: 'Airbnb',
-      status: 'Offer',
-      dateApplied: '2026-10-18',
-    },
-  ]);
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [showLogAppModal, setShowLogAppModal] = useState(false);
   const [newCompany, setNewCompany] = useState('');
   const [newRole, setNewRole] = useState('');
@@ -332,15 +306,11 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
   const handleReanalyzeSkills = async () => {
     setIsReanalyzing(true);
     try {
-      await new Promise(r => setTimeout(r, 600));
-      setSkills([
-        { name: 'Design', percentage: 86, color: 'bg-[#1a6682]' },
-        { name: 'Data', percentage: 68, color: 'bg-[#1a6682]' },
-        { name: 'Comm.', percentage: 80, color: 'bg-[#1a6682]' },
-      ]);
+      const result = await onAnalyze('Analyze my actual skills for target role ' + targetRoleId + '. Use only my real context and any uploaded CV; do not invent scores or experience. Return evidence-backed strengths, gaps, and next steps.');
+      setAiCoachingTip(result?.reply || 'No live skill analysis was returned.');
+      setShowSkillGapModal(true);
     } finally {
       setIsReanalyzing(false);
-      setShowSkillGapModal(true);
     }
   };
 
@@ -371,20 +341,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
     setShowLogAppModal(false);
   };
 
-  const handleQuickApplyFromModal = (internship: InternshipItem) => {
-    const existing = applications.find(
-      a => a.company.toLowerCase() === internship.company.toLowerCase()
-    );
-    if (existing) return;
-    const newItem: ApplicationItem = {
-      id: `app_${Date.now()}`,
-      company: internship.company,
-      role: internship.title,
-      status: 'Applied',
-      dateApplied: new Date().toISOString().split('T')[0],
-    };
-    setApplications(prev => [newItem, ...prev]);
-  };
+
 
   const currentQuestion = INTERVIEW_QUESTIONS[questionIndex];
   const inProgressCoursesCount = courses.filter(c => c.enrolled && c.progress < 100).length;
@@ -1168,24 +1125,8 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => {
-                      setCourses(prev =>
-                        prev.map(c =>
-                          c.id === selectedCourse.id
-                            ? { ...c, enrolled: true, progress: Math.min(100, c.progress + 25) }
-                            : c
-                        )
-                      );
-                      setSelectedCourse(prev =>
-                        prev ? { ...prev, enrolled: true, progress: Math.min(100, prev.progress + 25) } : null
-                      );
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold"
-                  >
-                    {selectedCourse.progress > 0 ? 'Continue Lesson (+25%)' : 'Enroll & Start Course'}
-                  </button>
+                <div className="flex justify-end">
+                  {selectedCourse.url && <a href={selectedCourse.url} target="_blank" rel="noreferrer" className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold">Open course source</a>}
                 </div>
               </div>
             ) : (
