@@ -624,7 +624,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
               className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-slate-300 shadow-xs"
             >
               <BookOpen className="w-3.5 h-3.5 text-[#1a6682]" />
-              <span>Browse all 32 courses</span>
+              <span>Browse live courses</span>
             </button>
           </div>
         </div>
@@ -909,7 +909,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
             ✓
           </div>
           <span className="text-slate-700 font-medium text-xs">
-            <span className="font-mono tabular-nums font-bold">5</span> applications this week
+            <span className="font-mono tabular-nums font-bold">{applications.length}</span> applications tracked
           </span>
         </div>
 
@@ -1024,7 +1024,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                   ATS Readiness Score
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-[#1a6682]">{cvScore}</span>
+                  <span className="text-3xl font-extrabold text-[#1a6682]">{cvScore === null ? "—" : cvScore}</span>
                   <span className="text-sm font-semibold text-slate-500">/ 100</span>
                 </div>
                 <p className="text-xs text-emerald-700 font-medium mt-1">
@@ -1187,7 +1187,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Spotify, Figma, Takealot..."
+                  placeholder="Company or organisation"
                   value={newCompany}
                   onChange={e => setNewCompany(e.target.value)}
                   className="w-full p-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682]"
@@ -1401,7 +1401,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                 <p className="text-sky-800 mt-0.5 leading-relaxed">
                   Closing the <strong>Data & Metrics (-12%)</strong> and{' '}
                   <strong>User Research (-2%)</strong> gaps will boost your match score for top-tier{' '}
-                  {ROLE_BENCHMARKS.find(r => r.id === targetRoleId)?.roleName} internships from 82% to 94%.
+                  {ROLE_BENCHMARKS.find(r => r.id === targetRoleId)?.roleName} internships by using evidence from your CV and a live skill-gap review.
                 </p>
               </div>
             </div>
