@@ -161,7 +161,7 @@ const savedCareerMemoryFromTools = (tools: ToolExecution[]): ContextMemory | nul
 
 export function useSylvia() {
   const [sylviaState, setSylviaState] = useState<SylviaState>('IDLE');
-  const [activeView, setActiveView] = useState<NavView>('career');
+  const [activeView, setActiveView] = useState<NavView>('chat');
   const [messages, setMessages] = useState<ChatItem[]>([{
     id: 'welcome_msg_init', sender: 'sylvia',
     text: "Greetings. I am **Sylvia**, your collaborative digital operator.\n\nI am synchronized with your **Decision DNA** and **Context Memory**. Google Workspace status will be shown only after a live backend Workspace check or operation.\n\nHow can we advance your objectives today?",
@@ -331,7 +331,9 @@ export function useSylvia() {
       }
       applyBackendWorkspaceHealth(response.workspaceResult);
       response.toolExecutions.forEach(tool => {
-        addActivity(response.specialist, `${tool.status === 'failed' ? 'ADK tool failed' : 'ADK tool executed'}: ${tool.action}`, tool.status === 'failed' ? 'error' : 'success', tool.action, tool.result);
+        const activityStatus = tool.status === 'failed' ? 'error' : tool.status === 'completed' ? 'success' : 'working';
+        const activityLabel = tool.status === 'failed' ? 'ADK tool failed' : tool.status === 'completed' ? 'ADK tool completed' : 'ADK tool awaiting a response';
+        addActivity(response.specialist, `${activityLabel}: ${tool.action}`, activityStatus, tool.action, tool.result);
       });
 
       const pendingApproval = response.approvalRequest;
