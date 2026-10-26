@@ -1970,88 +1970,186 @@
 }
 
 
-/* Sylvia's user-selectable product themes. The theme is shared by Workspace and Companion. */
-:root[data-sylvia-theme="light"] body {
-  background: #f5f7fb;
-  color: #172033;
+/* Sylvia glass workspace: Apple-inspired frosted surfaces, calm contrast, and a shared user-selectable theme. */
+:root {
+  color-scheme: light;
+  --sylvia-page: #f4f6fa;
+  --sylvia-ink: #182033;
+  --sylvia-muted: #68738a;
+  --sylvia-glass: rgba(255, 255, 255, .72);
+  --sylvia-glass-strong: rgba(255, 255, 255, .88);
+  --sylvia-border: rgba(122, 136, 163, .22);
+  --sylvia-shadow: 0 18px 50px rgba(28, 39, 66, .075);
+  --sylvia-accent: #5369d8;
 }
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell,
-:root[data-sylvia-theme="light"] .sylvia-companion-root {
-  color: #172033 !important;
-  background: #f5f7fb !important;
+:root[data-sylvia-theme="light"] {
+  color-scheme: light;
+  --sylvia-page: #f4f6fa;
+  --sylvia-ink: #182033;
+  --sylvia-muted: #68738a;
+  --sylvia-glass: rgba(255, 255, 255, .72);
+  --sylvia-glass-strong: rgba(255, 255, 255, .9);
+  --sylvia-border: rgba(122, 136, 163, .22);
+  --sylvia-shadow: 0 18px 50px rgba(28, 39, 66, .075);
 }
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell {
-  background-image: radial-gradient(ellipse at 50% -15%, rgba(174, 190, 255, .24), transparent 55%);
+:root[data-sylvia-theme="dark"] {
+  color-scheme: dark;
+  --sylvia-page: #0c1018;
+  --sylvia-ink: #edf1f8;
+  --sylvia-muted: #9ba6ba;
+  --sylvia-glass: rgba(22, 28, 40, .68);
+  --sylvia-glass-strong: rgba(22, 28, 40, .88);
+  --sylvia-border: rgba(181, 193, 218, .14);
+  --sylvia-shadow: 0 18px 50px rgba(0, 0, 0, .22);
 }
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell .glass-panel,
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell .glass-panel-subtle,
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell .glass-panel-elevated {
-  color: #172033;
-  background: rgba(255,255,255,.78);
-  border-color: rgba(111,125,157,.19);
-  box-shadow: 0 10px 35px rgba(31,41,71,.06);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+:root body {
+  background: var(--sylvia-page);
+  color: var(--sylvia-ink);
 }
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell header,
-:root[data-sylvia-theme="light"] .sylvia-workspace-sidebar,
-:root[data-sylvia-theme="light"] .sylvia-workspace-right-drawer {
-  color: #172033;
-  background-color: rgba(255,255,255,.82);
-  border-color: #e4e8f1;
-}
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell [class*="text-slate-100"],
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell [class*="text-slate-200"],
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell [class*="text-white"],
-:root[data-sylvia-theme="light"] .sylvia-companion-root [class*="text-slate-100"],
-:root[data-sylvia-theme="light"] .sylvia-companion-root [class*="text-slate-200"],
-:root[data-sylvia-theme="light"] .sylvia-companion-root [class*="text-white"] {
-  color: #172033 !important;
-}
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell [class*="text-slate-400"],
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell [class*="text-slate-500"],
-:root[data-sylvia-theme="light"] .sylvia-companion-root [class*="text-slate-400"],
-:root[data-sylvia-theme="light"] .sylvia-companion-root [class*="text-slate-500"] {
-  color: #68738a !important;
-}
-:root[data-sylvia-theme="light"] .sylvia-workspace-control {
-  color: #33415e;
-  background: rgba(255,255,255,.88);
-  border-color: #dce2ee;
-}
-:root[data-sylvia-theme="light"] .sylvia-workspace-control:hover {
-  background: #edf1fa;
-  border-color: #c5cfe2;
-}
-:root[data-sylvia-theme="light"] .sylvia-companion-glow {
-  opacity: .12;
-}
-:root[data-sylvia-theme="light"] .sylvia-companion-root input,
-:root[data-sylvia-theme="light"] .sylvia-companion-root textarea,
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell input,
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell textarea,
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell select {
-  color: #172033;
-  background-color: rgba(255,255,255,.94);
-  border-color: #dce2ee;
-}
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell button,
-:root[data-sylvia-theme="light"] .sylvia-companion-root button {
-  -webkit-tap-highlight-color: transparent;
-}
-:root[data-sylvia-theme="dark"] body {
-  background: #030712;
-  color: #f1f5f9;
+.sylvia-workspace-shell,
+.sylvia-companion-root {
+  color: var(--sylvia-ink) !important;
+  background: var(--sylvia-page) !important;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(174, 190, 255, .17), transparent 38%),
+    radial-gradient(ellipse at 88% 10%, rgba(199, 213, 244, .15), transparent 35%) !important;
 }
 :root[data-sylvia-theme="dark"] .sylvia-workspace-shell,
 :root[data-sylvia-theme="dark"] .sylvia-companion-root {
-  color: #f1f5f9 !important;
-  background-color: #030712 !important;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(86, 105, 173, .13), transparent 38%),
+    radial-gradient(ellipse at 88% 10%, rgba(78, 90, 126, .11), transparent 35%) !important;
 }
-:root[data-sylvia-theme="light"] .sylvia-workspace-shell *,
-:root[data-sylvia-theme="light"] .sylvia-companion-root *,
-:root[data-sylvia-theme="dark"] .sylvia-workspace-shell *,
-:root[data-sylvia-theme="dark"] .sylvia-companion-root * {
+.sylvia-workspace-sidebar,
+.sylvia-workspace-topbar,
+.sylvia-workspace-right-drawer,
+.sylvia-workspace-shell .glass-panel,
+.sylvia-workspace-shell .glass-panel-subtle,
+.sylvia-workspace-shell .glass-panel-elevated,
+.sylvia-companion-root .glass-panel,
+.sylvia-companion-root [class*="rounded-"][class*="border"] {
+  color: var(--sylvia-ink);
+  background: var(--sylvia-glass) !important;
+  border-color: var(--sylvia-border) !important;
+  box-shadow: var(--sylvia-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
+}
+.sylvia-workspace-sidebar {
+  background: var(--sylvia-glass-strong) !important;
+  box-shadow: 10px 0 34px rgba(25, 35, 58, .035);
+}
+.sylvia-workspace-topbar {
+  border-bottom: 1px solid var(--sylvia-border);
+  background: var(--sylvia-glass-strong) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  backdrop-filter: blur(26px) saturate(1.4);
+}
+.sylvia-workspace-shell [class*="text-slate-100"],
+.sylvia-workspace-shell [class*="text-slate-200"],
+.sylvia-workspace-shell [class*="text-white"],
+.sylvia-companion-root [class*="text-slate-100"],
+.sylvia-companion-root [class*="text-slate-200"],
+.sylvia-companion-root [class*="text-white"] {
+  color: var(--sylvia-ink) !important;
+}
+.sylvia-workspace-shell [class*="text-slate-300"],
+.sylvia-workspace-shell [class*="text-slate-400"],
+.sylvia-workspace-shell [class*="text-slate-500"],
+.sylvia-companion-root [class*="text-slate-300"],
+.sylvia-companion-root [class*="text-slate-400"],
+.sylvia-companion-root [class*="text-slate-500"] {
+  color: var(--sylvia-muted) !important;
+}
+.sylvia-workspace-shell [class*="bg-slate-950"],
+.sylvia-workspace-shell [class*="bg-slate-900"],
+.sylvia-workspace-shell [class*="bg-slate-800"],
+.sylvia-companion-root [class*="bg-slate-950"],
+.sylvia-companion-root [class*="bg-slate-900"],
+.sylvia-companion-root [class*="bg-slate-800"] {
+  background-color: var(--sylvia-glass) !important;
+}
+.sylvia-workspace-shell [class*="border-slate-800"],
+.sylvia-workspace-shell [class*="border-slate-700"],
+.sylvia-companion-root [class*="border-slate-800"],
+.sylvia-companion-root [class*="border-slate-700"] {
+  border-color: var(--sylvia-border) !important;
+}
+.sylvia-workspace-shell .sylvia-workspace-control,
+.sylvia-companion-root .sylvia-workspace-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: 38px;
+  padding: 0 .8rem;
+  color: var(--sylvia-ink) !important;
+  background: var(--sylvia-glass-strong) !important;
+  border: 1px solid var(--sylvia-border) !important;
+  border-radius: 13px;
+  box-shadow: 0 4px 14px rgba(20, 30, 55, .045);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.sylvia-workspace-shell .sylvia-workspace-control:hover {
+  background: var(--sylvia-glass) !important;
+  border-color: rgba(83, 105, 216, .35) !important;
+}
+.sylvia-workspace-shell #sylvia-command-console > div:last-child {
+  background: var(--sylvia-glass-strong) !important;
+  border: 1px solid var(--sylvia-border) !important;
+  border-radius: 22px;
+  box-shadow: var(--sylvia-shadow);
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  backdrop-filter: blur(26px) saturate(1.4);
+}
+.sylvia-workspace-shell input,
+.sylvia-workspace-shell textarea,
+.sylvia-workspace-shell select,
+.sylvia-companion-root input,
+.sylvia-companion-root textarea,
+.sylvia-companion-root select {
+  color: var(--sylvia-ink) !important;
+  background: var(--sylvia-glass-strong) !important;
+  border-color: var(--sylvia-border) !important;
+}
+.sylvia-workspace-shell input::placeholder,
+.sylvia-workspace-shell textarea::placeholder,
+.sylvia-companion-root input::placeholder,
+.sylvia-companion-root textarea::placeholder {
+  color: var(--sylvia-muted) !important;
+}
+.sylvia-workspace-shell button,
+.sylvia-companion-root button {
+  -webkit-tap-highlight-color: transparent;
+}
+.sylvia-workspace-chat-stage::before {
+  background: radial-gradient(circle, rgba(110, 128, 194, .12) 0%, rgba(174, 190, 255, .06) 45%, transparent 72%);
+}
+:root[data-sylvia-theme="dark"] .sylvia-workspace-chat-stage::before {
+  background: radial-gradient(circle, rgba(110, 128, 194, .19) 0%, rgba(174, 190, 255, .07) 45%, transparent 72%);
+}
+.sylvia-companion-glow { opacity: .13 !important; }
+:root[data-sylvia-theme="dark"] .sylvia-companion-glow { opacity: .24 !important; }
+.sylvia-workspace-shell button:focus-visible,
+.sylvia-workspace-shell textarea:focus-visible,
+.sylvia-workspace-shell input:focus-visible,
+.sylvia-workspace-shell select:focus-visible,
+.sylvia-companion-root button:focus-visible,
+.sylvia-companion-root textarea:focus-visible,
+.sylvia-companion-root input:focus-visible,
+.sylvia-companion-root select:focus-visible {
+  outline: 2px solid rgba(83, 105, 216, .62);
+  outline-offset: 2px;
+}
+/* Keep the current layout and character, but remove motion until the interaction model is settled. */
+.sylvia-workspace-shell *,
+.sylvia-companion-root * {
   animation: none !important;
   scroll-behavior: auto !important;
+  transition-duration: 0s !important;
+}
+@media (max-width: 767px) {
+  .sylvia-workspace-sidebar { box-shadow: 8px 0 28px rgba(25, 35, 58, .08); }
+  .sylvia-workspace-shell .sylvia-workspace-control { min-height: 36px; padding-inline: .55rem; }
 }
