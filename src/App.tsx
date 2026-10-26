@@ -264,6 +264,7 @@ export function App() {
       <div className={`sylvia-workspace-sidebar fixed inset-y-0 left-0 z-50 w-64 shrink-0 transform transition-all duration-300 ease-in-out md:relative md:inset-auto ${sidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden'}`}>
         <Sidebar
           activeView={activeView}
+          compactWorkspaceOnly
           onSelectView={view => {
             setActiveView(view);
             if (window.matchMedia('(max-width: 767px)').matches) {
