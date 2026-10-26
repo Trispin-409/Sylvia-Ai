@@ -180,6 +180,7 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
     { name: 'Comm.', percentage: null, color: 'bg-[#1a6682]' },
   ]);
   const [showSkillGapModal, setShowSkillGapModal] = useState(false);
+  const [skillAnalysisText, setSkillAnalysisText] = useState<string | null>(null);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
 
   // 5. Interview practice state
@@ -307,7 +308,7 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
     setIsReanalyzing(true);
     try {
       const result = await onAnalyze('Analyze my actual skills for target role ' + targetRoleId + '. Use only my real context and any uploaded CV; do not invent scores or experience. Return evidence-backed strengths, gaps, and next steps.');
-      setAiCoachingTip(result?.reply || 'No live skill analysis was returned.');
+      setSkillAnalysisText(result?.reply || 'No live skill analysis was returned.');
       setShowSkillGapModal(true);
     } finally {
       setIsReanalyzing(false);
@@ -1264,6 +1265,8 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {skillAnalysisText && <div className="rounded-2xl border border-[#d2e4f0] bg-[#f4f9fc] p-4 text-xs text-slate-700 whitespace-pre-wrap">{skillAnalysisText}</div>}
 
             {/* Role benchmarks switcher & re-analyze trigger */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
