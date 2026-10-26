@@ -127,7 +127,7 @@ async function extractUploadedFileText(file: File): Promise<string> {
     for (let number = 1; number <= pdf.numPages; number += 1) {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
-      pages.push(content.items.map((item: { str?: string }) => item.str || '').join(' '));
+      pages.push(content.items.map(item => ('str' in item ? item.str : '')).join(' '));
     }
     return pages.join('\n').trim();
   }
@@ -259,7 +259,7 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
     try {
       const result = await onAnalyze('Use the real live search_live_opportunities tool to find current online courses and training for South African entry-level job seekers: digital skills, data, communication, IT, frontend and workplace readiness. Prefer free or low-cost options; category training; return structured records with title, summary, provider, source_url, application_url and verification_status. Never invent course names, durations, prices or URLs.');
       const records = recordsFrom(result);
-      const mapped: CourseItem[] = records.map((item, index) => { const url = textField(item.source_url ?? item.sourceUrl ?? item.url); return { id: textField(item.id, 'course-' + index), title: textField(item.title, 'Course'), duration: textField(item.duration, 'Duration not stated'), level: textField(item.level, 'Level not stated'), icon: 'play', enrolled: false, progress: 0, description: textField(item.summary ?? item.description, 'Review course details on the source page.'), url: /^https?:\/\//i.test(url) ? url : undefined }; }).filter(course => Boolean(course.url));
+      const mapped: CourseItem[] = records.map((item, index) => { const url = textField(item.source_url ?? item.sourceUrl ?? item.url); return { id: textField(item.id, 'course-' + index), title: textField(item.title, 'Course'), duration: textField(item.duration, 'Duration not stated'), level: textField(item.level, 'Level not stated'), icon: 'play' as const, enrolled: false, progress: 0, description: textField(item.summary ?? item.description, 'Review course details on the source page.'), url: /^https?:\/\//i.test(url) ? url : undefined }; }).filter(course => Boolean(course.url));
       setCourses(mapped); if (!mapped.length) setCourseSearchError(result?.reply || 'No structured source-linked courses were returned by the live backend.');
     } catch (error) { setCourseSearchError(error instanceof Error ? error.message : 'Live course search failed.'); }
     finally { setIsSearchingCourses(false); }
