@@ -69,6 +69,7 @@ interface CourseItem {
   enrolled: boolean;
   progress: number;
   description: string;
+  url?: string;
 }
 
 interface InternshipItem {
@@ -79,131 +80,12 @@ interface InternshipItem {
   type: string;
   stipend: string;
   category: 'Design' | 'Marketing' | 'Tech' | 'Remote';
-  matchRate: number;
   tags: string[];
+  sourceUrl?: string;
+  applicationUrl?: string;
+  deadline?: string;
+  verificationStatus?: string;
 }
-
-const INITIAL_COURSES: CourseItem[] = [
-  {
-    id: 'c1',
-    title: 'Data storytelling',
-    duration: '2h 30m',
-    level: 'Intermediate',
-    icon: 'play',
-    enrolled: true,
-    progress: 65,
-    description: 'Transform complex analytics and business metrics into compelling visual narratives for executive decision-makers.',
-  },
-  {
-    id: 'c2',
-    title: 'Communication skills',
-    duration: '1h 45m',
-    level: 'Beginner',
-    icon: 'chat',
-    enrolled: true,
-    progress: 40,
-    description: 'Master assertive cross-functional communication, active listening, and concise written reporting.',
-  },
-  {
-    id: 'c3',
-    title: 'Intro to frontend',
-    duration: '4h 20m',
-    level: 'Beginner',
-    icon: 'code',
-    enrolled: false,
-    progress: 0,
-    description: 'Build responsive, accessible interfaces using modern HTML, CSS, JavaScript, and Tailwind design tokens.',
-  },
-  {
-    id: 'c4',
-    title: 'Product design systems',
-    duration: '3h 15m',
-    level: 'Intermediate',
-    icon: 'play',
-    enrolled: false,
-    progress: 0,
-    description: 'Learn component architecture, Figma tokens, accessibility contrast rules, and design-to-engineering handoff.',
-  },
-  {
-    id: 'c5',
-    title: 'Technical interview prep',
-    duration: '2h 10m',
-    level: 'Advanced',
-    icon: 'code',
-    enrolled: false,
-    progress: 0,
-    description: 'Deconstruct algorithmic thinking, data structures, and problem-solving patterns under timed interview conditions.',
-  },
-];
-
-const CURATED_INTERNSHIPS: InternshipItem[] = [
-  {
-    id: 'int_1',
-    title: 'UX / Product Design Intern',
-    company: 'Figma',
-    location: 'Remote · Global',
-    type: 'Full-time Intern',
-    stipend: 'R18,500 / mo',
-    category: 'Design',
-    matchRate: 92,
-    tags: ['Design Systems', 'Figma', 'Prototyping', 'Remote'],
-  },
-  {
-    id: 'int_2',
-    title: 'Product Operations Intern',
-    company: 'Spotify',
-    location: 'Hybrid · Cape Town',
-    type: 'Full-time Intern',
-    stipend: 'R16,000 / mo',
-    category: 'Design',
-    matchRate: 88,
-    tags: ['User Research', 'Product Specs', 'Data Analytics'],
-  },
-  {
-    id: 'int_3',
-    title: 'Design Systems Intern',
-    company: 'Airbnb',
-    location: 'Remote · Africa South',
-    type: 'Contract Intern',
-    stipend: 'R19,200 / mo',
-    category: 'Design',
-    matchRate: 85,
-    tags: ['Figma Tokens', 'UI Design', 'Accessibility', 'Remote'],
-  },
-  {
-    id: 'int_4',
-    title: 'Frontend Web Engineering Intern',
-    company: 'First National Bank (FNB)',
-    location: 'Hybrid · Johannesburg',
-    type: 'Full-time Graduate',
-    stipend: 'R17,000 / mo',
-    category: 'Tech',
-    matchRate: 81,
-    tags: ['React', 'TypeScript', 'Tailwind', 'Mobile'],
-  },
-  {
-    id: 'int_5',
-    title: 'Growth & Product Marketing Intern',
-    company: 'Takealot Group',
-    location: 'Cape Town / Remote',
-    type: 'Paid Internship',
-    stipend: 'R14,500 / mo',
-    category: 'Marketing',
-    matchRate: 79,
-    tags: ['Content Strategy', 'Funnel Analytics', 'A/B Testing'],
-  },
-  {
-    id: 'int_6',
-    title: 'Junior Data Analyst Intern',
-    company: 'Standard Bank Innovation Hub',
-    location: 'Johannesburg',
-    type: 'Full-time Intern',
-    stipend: 'R15,500 / mo',
-    category: 'Tech',
-    matchRate: 76,
-    tags: ['SQL', 'Data Storytelling', 'Python', 'PowerBI'],
-  },
-];
 
 const INTERVIEW_QUESTIONS = [
   {
@@ -233,6 +115,29 @@ const INTERVIEW_QUESTIONS = [
   },
 ];
 
+async function extractUploadedFileText(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.txt')) return file.text();
+  if (name.endsWith('.pdf')) {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const worker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs?url');
+    pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages: string[] = [];
+    for (let number = 1; number <= pdf.numPages; number += 1) {
+      const page = await pdf.getPage(number);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(item => ('str' in item ? item.str : '')).join(' '));
+    }
+    return pages.join('\n').trim();
+  }
+  if (name.endsWith('.docx')) {
+    const mammoth = await import('mammoth');
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value.trim();
+  }
+  throw new Error('Upload a PDF, DOCX, or TXT CV.');
+}
 export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   backendConnected,
   isWorking,
@@ -243,31 +148,39 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   onNavigateToView,
 }) => {
   // 1. Search internships state
-  const [searchQuery, setSearchQuery] = useState('Product design');
-  const [selectedTag, setSelectedTag] = useState<string>('Design');
+  const [searchQuery, setSearchQuery] = useState('IT internships and learnerships');
+  const [selectedTag, setSelectedTag] = useState<string>('');
   const [showInternshipsModal, setShowInternshipsModal] = useState(false);
+  const [opportunities, setOpportunities] = useState<InternshipItem[]>([]);
+  const [isSearchingOpportunities, setIsSearchingOpportunities] = useState(false);
+  const [opportunitySearchError, setOpportunitySearchError] = useState<string | null>(null);
 
   // 2. CV revamp state
-  const [cvFileName, setCvFileName] = useState('CV_2025.pdf');
-  const [cvScore, setCvScore] = useState(94);
+  const [cvFileName, setCvFileName] = useState('');
+  const [cvText, setCvText] = useState('');
+  const [cvUploadError, setCvUploadError] = useState<string | null>(null);
+  const [cvScore, setCvScore] = useState<number | null>(null);
   const [showRevampModal, setShowRevampModal] = useState(false);
   const [isRevamping, setIsRevamping] = useState(false);
   const [revampFeedback, setRevampFeedback] = useState<string | null>(null);
 
   // 3. Courses state
-  const [courses, setCourses] = useState<CourseItem[]>(INITIAL_COURSES);
+  const [courses, setCourses] = useState<CourseItem[]>([]);
+  const [isSearchingCourses, setIsSearchingCourses] = useState(false);
+  const [courseSearchError, setCourseSearchError] = useState<string | null>(null);
   const [showCoursesModal, setShowCoursesModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CourseItem | null>(null);
 
   // 4. Skill gap state & D3 Radar view
   const [skillGapViewMode, setSkillGapViewMode] = useState<'radar' | 'bars'>('bars');
   const [targetRoleId, setTargetRoleId] = useState<string>('product-design');
-  const [skills, setSkills] = useState([
-    { name: 'Design', percentage: 82, color: 'bg-[#1a6682]' },
-    { name: 'Data', percentage: 58, color: 'bg-[#1a6682]' },
-    { name: 'Comm.', percentage: 74, color: 'bg-[#1a6682]' },
+  const [skills, setSkills] = useState<Array<{ name: string; percentage: number | null; color: string }>>([
+    { name: 'Design', percentage: null, color: 'bg-[#1a6682]' },
+    { name: 'Data', percentage: null, color: 'bg-[#1a6682]' },
+    { name: 'Comm.', percentage: null, color: 'bg-[#1a6682]' },
   ]);
   const [showSkillGapModal, setShowSkillGapModal] = useState(false);
+  const [skillAnalysisText, setSkillAnalysisText] = useState<string | null>(null);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
 
   // 5. Interview practice state
@@ -278,29 +191,7 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   const [isCoaching, setIsCoaching] = useState(false);
 
   // 6. Applications state
-  const [applications, setApplications] = useState<ApplicationItem[]>([
-    {
-      id: 'app_1',
-      role: 'UX Intern',
-      company: 'Figma',
-      status: 'Interview',
-      dateApplied: '2026-10-21',
-    },
-    {
-      id: 'app_2',
-      role: 'Product Intern',
-      company: 'Spotify',
-      status: 'Review',
-      dateApplied: '2026-10-22',
-    },
-    {
-      id: 'app_3',
-      role: 'Design Intern',
-      company: 'Airbnb',
-      status: 'Offer',
-      dateApplied: '2026-10-18',
-    },
-  ]);
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [showLogAppModal, setShowLogAppModal] = useState(false);
   const [newCompany, setNewCompany] = useState('');
   const [newRole, setNewRole] = useState('');
@@ -308,8 +199,8 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
 
   // 7. Roadmap state
   const [roadmap, setRoadmap] = useState<RoadmapItem[]>([
-    { id: 'rm_1', title: 'Complete profile', completed: true },
-    { id: 'rm_2', title: 'Upload & revamp CV', completed: true },
+    { id: 'rm_1', title: 'Complete profile', completed: false },
+    { id: 'rm_2', title: 'Upload & revamp CV', completed: false },
     { id: 'rm_3', title: 'Finish "Data storytelling" course', completed: false },
     { id: 'rm_4', title: 'Practice 3 mock interviews', completed: false },
     { id: 'rm_5', title: 'Apply to 5 internships', completed: false },
@@ -319,21 +210,60 @@ export const CareerBridgeWorkspace: React.FC<CareerBridgeWorkspaceProps> = ({
   // Profile Menu Dropdown
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Filtered internships calculation
-  const filteredInternships = CURATED_INTERNSHIPS.filter(item => {
+  // Only source-linked records returned by the live ADK tool are displayed.
+  const filteredInternships = opportunities.filter(item => {
     const query = searchQuery.toLowerCase().trim();
-    const matchesQuery =
-      !query ||
-      item.title.toLowerCase().includes(query) ||
-      item.tags.some(t => t.toLowerCase().includes(query)) ||
-      item.category.toLowerCase().includes(query);
-    const matchesTag =
-      !selectedTag ||
-      item.category === selectedTag ||
-      (selectedTag === 'Remote' && item.location.includes('Remote')) ||
-      item.tags.includes(selectedTag);
+    const matchesQuery = !query || item.title.toLowerCase().includes(query) || item.tags.some(tag => tag.toLowerCase().includes(query)) || item.company.toLowerCase().includes(query);
+    const matchesTag = !selectedTag || item.category === selectedTag || (selectedTag === 'Remote' && item.location.toLowerCase().includes('remote'));
     return matchesQuery && matchesTag;
   });
+
+  const recordsFrom = (value: unknown, depth = 0): Record<string, unknown>[] => {
+    if (depth > 6 || value == null) return [];
+    if (typeof value === 'string') {
+      const text = value.trim(); const first = text.indexOf('{'); const last = text.lastIndexOf('}');
+      try { return recordsFrom(JSON.parse(first >= 0 && last > first ? text.slice(first, last + 1) : text), depth + 1); } catch { return []; }
+    }
+    if (Array.isArray(value)) {
+      const direct = value.filter((x): x is Record<string, unknown> => Boolean(x && typeof x === 'object' && typeof (x as Record<string, unknown>).title === 'string' && ((x as Record<string, unknown>).source_url || (x as Record<string, unknown>).sourceUrl || (x as Record<string, unknown>).url)));
+      if (direct.length) return direct;
+      for (const item of value) { const found = recordsFrom(item, depth + 1); if (found.length) return found; }
+      return [];
+    }
+    if (typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      for (const key of ['opportunities', 'courses', 'results', 'items']) if (Array.isArray(obj[key])) { const found = recordsFrom(obj[key], depth + 1); if (found.length) return found; }
+      for (const child of Object.values(obj)) { const found = recordsFrom(child, depth + 1); if (found.length) return found; }
+    }
+    return [];
+  };
+  const textField = (value: unknown, fallback = '') => typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  const handleSearchOpportunities = async () => {
+    setIsSearchingOpportunities(true); setOpportunitySearchError(null); setShowInternshipsModal(true);
+    try {
+      const result = await onAnalyze('Use the real live search_live_opportunities tool now. Search current South African jobs, internships, learnerships and bursaries for this query: ' + (searchQuery.trim() || 'entry-level opportunities') + '. Request up to 8. Return structured tool records with title, summary, opportunity_type, location, eligibility, deadline, paid_status, source_url, application_url and verification_status. Never invent results, URLs, salaries, deadlines or match percentages. If the tool fails or returns no grounded sources, say so.');
+      const records = recordsFrom(result);
+      const mapped = records.map((item, index) => {
+        const sourceUrl = textField(item.source_url ?? item.sourceUrl ?? item.url); const title = textField(item.title);
+        if (!title || !/^https?:\/\//i.test(sourceUrl)) return null;
+        const type = textField(item.opportunity_type ?? item.type, 'Opportunity'); const categoryText = (title + ' ' + type).toLowerCase();
+        const category: InternshipItem['category'] = /design|ux|ui/.test(categoryText) ? 'Design' : /market|growth|content/.test(categoryText) ? 'Marketing' : /remote/.test(categoryText) ? 'Remote' : 'Tech';
+        return { id: textField(item.id, 'live-' + index + '-' + sourceUrl), title, company: textField(item.company ?? item.organization ?? item.provider ?? item.source_title, 'Provider not stated'), location: textField(item.location, 'Location not stated'), type, stipend: textField(item.paid_status ?? item.stipend, 'Pay not stated'), category, tags: [type], sourceUrl, applicationUrl: textField(item.application_url ?? item.applicationUrl) || undefined, deadline: textField(item.deadline) || undefined, verificationStatus: textField(item.verification_status, 'search_result_only') } as InternshipItem;
+      }).filter((item): item is InternshipItem => Boolean(item));
+      setOpportunities(mapped); if (!mapped.length) setOpportunitySearchError(result?.reply || 'No structured source-linked opportunities were returned by the live backend.');
+    } catch (error) { setOpportunitySearchError(error instanceof Error ? error.message : 'Live opportunity search failed.'); }
+    finally { setIsSearchingOpportunities(false); }
+  };
+  const handleSearchCourses = async () => {
+    setIsSearchingCourses(true); setCourseSearchError(null); setShowCoursesModal(true); setSelectedCourse(null);
+    try {
+      const result = await onAnalyze('Use the real live search_live_opportunities tool to find current online courses and training for South African entry-level job seekers: digital skills, data, communication, IT, frontend and workplace readiness. Prefer free or low-cost options; category training; return structured records with title, summary, provider, source_url, application_url and verification_status. Never invent course names, durations, prices or URLs.');
+      const records = recordsFrom(result);
+      const mapped: CourseItem[] = records.map((item, index) => { const url = textField(item.source_url ?? item.sourceUrl ?? item.url); return { id: textField(item.id, 'course-' + index), title: textField(item.title, 'Course'), duration: textField(item.duration, 'Duration not stated'), level: textField(item.level, 'Level not stated'), icon: 'play' as const, enrolled: false, progress: 0, description: textField(item.summary ?? item.description, 'Review course details on the source page.'), url: /^https?:\/\//i.test(url) ? url : undefined }; }).filter(course => Boolean(course.url));
+      setCourses(mapped); if (!mapped.length) setCourseSearchError(result?.reply || 'No structured source-linked courses were returned by the live backend.');
+    } catch (error) { setCourseSearchError(error instanceof Error ? error.message : 'Live course search failed.'); }
+    finally { setIsSearchingCourses(false); }
+  };
 
   const handleNextQuestion = () => {
     setQuestionIndex(prev => (prev + 1) % INTERVIEW_QUESTIONS.length);
@@ -363,57 +293,25 @@ Give 2 brief, encouraging bullet points on what was strong and 1 tactical improv
   };
 
   const handleRevampCVWithAI = async () => {
-    setIsRevamping(true);
     setShowRevampModal(true);
+    if (!cvText.trim()) { setRevampFeedback('Upload a readable PDF, DOCX or TXT CV first. Sylvia will review the text extracted from your actual file.'); return; }
+    setIsRevamping(true);
     try {
-      const prompt = `You are Sylvia, executive resume optimizer. The user wants to revamp their CV for modern tech and design internships. Target role: ${searchQuery || 'Product Design / Tech'}.
-Generate:
-1. Updated CV Score breakdown (e.g. 94/100).
-2. Three impactful bullet points rewritten with strong action verbs (Before vs After).
-3. Top 4 ATS keywords they must include.`;
+      const prompt = 'You are Sylvia, a truthful CV reviewer. Review the actual extracted CV below for the target role ' + (searchQuery || 'entry-level work') + '. Use only details in the CV. Never invent employers, qualifications, dates, achievements, metrics or skills. Suggest specific rewrites, relevant ATS keywords, and explain the basis of any score; do not assume a score.\n\nFilename: ' + cvFileName + '\n\nCV TEXT:\n' + cvText.slice(0, 14000);
       const res = await onAnalyze(prompt);
-      if (res?.reply) {
-        setRevampFeedback(res.reply);
-        setCvScore(95);
-      } else {
-        setRevampFeedback(`### AI Revamped Recommendations
-**Overall ATS Compatibility Score: 94 / 100**
-
-• **Action Verb Enhancement:**
-  - *Before:* Helped team design customer onboarding screens.
-  - *After:* Architected end-to-end customer onboarding design flows in Figma, decreasing early churn by 18%.
-
-• **Quantifiable Metrics:**
-  - *Before:* Worked on marketing collaterals and social posts.
-  - *After:* Created unified brand design system components across 12 digital campaigns, lifting engagement by 32%.
-
-• **ATS Keyword Match:**
-  - Design Systems · Cross-Functional Collaboration · Wireframing · Usability Testing`);
-      }
-    } catch {
-      setRevampFeedback(`### AI Revamped Recommendations
-**Overall ATS Compatibility Score: 94 / 100**
-
-• **Action Verb Enhancement:**
-  - *Before:* Responsible for user testing and designs.
-  - *After:* Spearheaded rapid prototyping and usability testing across 25+ participants, accelerating feature launch by 2 weeks.`);
-    } finally {
-      setIsRevamping(false);
-    }
+      setRevampFeedback(res?.reply || 'The live backend returned no CV analysis. No score has been assumed.');
+      setCvScore(null);
+    } catch (error) { setRevampFeedback('CV analysis failed: ' + (error instanceof Error ? error.message : String(error))); setCvScore(null); }
+    finally { setIsRevamping(false); }
   };
-
   const handleReanalyzeSkills = async () => {
     setIsReanalyzing(true);
     try {
-      await new Promise(r => setTimeout(r, 600));
-      setSkills([
-        { name: 'Design', percentage: 86, color: 'bg-[#1a6682]' },
-        { name: 'Data', percentage: 68, color: 'bg-[#1a6682]' },
-        { name: 'Comm.', percentage: 80, color: 'bg-[#1a6682]' },
-      ]);
+      const result = await onAnalyze('Analyze my actual skills for target role ' + targetRoleId + '. Use only my real context and any uploaded CV; do not invent scores or experience. Return evidence-backed strengths, gaps, and next steps.');
+      setSkillAnalysisText(result?.reply || 'No live skill analysis was returned.');
+      setShowSkillGapModal(true);
     } finally {
       setIsReanalyzing(false);
-      setShowSkillGapModal(true);
     }
   };
 
@@ -444,20 +342,7 @@ Generate:
     setShowLogAppModal(false);
   };
 
-  const handleQuickApplyFromModal = (internship: InternshipItem) => {
-    const existing = applications.find(
-      a => a.company.toLowerCase() === internship.company.toLowerCase()
-    );
-    if (existing) return;
-    const newItem: ApplicationItem = {
-      id: `app_${Date.now()}`,
-      company: internship.company,
-      role: internship.title,
-      status: 'Applied',
-      dateApplied: new Date().toISOString().split('T')[0],
-    };
-    setApplications(prev => [newItem, ...prev]);
-  };
+
 
   const currentQuestion = INTERVIEW_QUESTIONS[questionIndex];
   const inProgressCoursesCount = courses.filter(c => c.enrolled && c.progress < 100).length;
@@ -590,7 +475,7 @@ Generate:
                 className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 outline-none font-medium"
               />
               <button
-                onClick={() => setShowInternshipsModal(true)}
+                onClick={() => { void handleSearchOpportunities(); }}
                 className="px-3 py-1 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-lg text-xs font-semibold shrink-0 transition-colors shadow-xs"
               >
                 Search
@@ -627,7 +512,7 @@ Generate:
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-[#1a6682] shrink-0" />
             <span>
-              {filteredInternships.length} internships match "{searchQuery || selectedTag || 'roles'}"
+              {isSearchingOpportunities ? 'Searching live sources…' : filteredInternships.length + ' source-linked results'} for "{searchQuery || selectedTag || 'roles'}"
             </span>
           </div>
         </div>
@@ -651,17 +536,23 @@ Generate:
                 type="file"
                 accept=".pdf,.docx,.txt"
                 className="sr-only"
-                onChange={e => {
-                  if (e.target.files?.[0]) {
-                    setCvFileName(e.target.files[0].name);
-                  }
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setCvUploadError(null); setCvText(''); setCvFileName('');
+                  try {
+                    const extracted = await extractUploadedFileText(file);
+                    if (!extracted.trim()) throw new Error('No readable text found. This may be a scanned PDF; use a text-based PDF or DOCX.');
+                    setCvFileName(file.name); setCvText(extracted.slice(0, 14000)); setCvScore(null);
+                  } catch (error) { setCvUploadError(error instanceof Error ? error.message : 'Could not read this CV file.'); }
                 }}
               />
               <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#1a6682]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#1a6682]" />
-                <span>{cvFileName} uploaded</span>
+                <span>{cvFileName ? cvFileName + ' ready for analysis' : 'Choose a PDF, DOCX or TXT CV'}</span>
               </div>
             </label>
+            {cvUploadError && <p className="text-[10px] text-rose-600" role="alert">{cvUploadError}</p>}
 
             {/* Action Button */}
             <button
@@ -730,11 +621,11 @@ Generate:
           {/* Action Button */}
           <div className="mt-3 pt-1">
             <button
-              onClick={() => setShowCoursesModal(true)}
+              onClick={() => { void handleSearchCourses(); }}
               className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-slate-300 shadow-xs"
             >
               <BookOpen className="w-3.5 h-3.5 text-[#1a6682]" />
-              <span>Browse all 32 courses</span>
+              <span>Browse live courses</span>
             </button>
           </div>
         </div>
@@ -812,11 +703,11 @@ Generate:
                     <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className="h-full bg-[#1a6682] rounded-full transition-all duration-700"
-                        style={{ width: `${skill.percentage}%` }}
+                        style={{ width: `${skill.percentage ?? 0}%` }}
                       />
                     </div>
                     <span className="font-bold text-slate-700 w-8 text-right shrink-0 text-[11px] sm:text-xs">
-                      {skill.percentage}%
+                      {skill.percentage === null ? 'Not analyzed' : `${skill.percentage}%`}
                     </span>
                   </div>
                 ))}
@@ -1019,14 +910,14 @@ Generate:
             ✓
           </div>
           <span className="text-slate-700 font-medium text-xs">
-            <span className="font-mono tabular-nums font-bold">5</span> applications this week
+            <span className="font-mono tabular-nums font-bold">{applications.length}</span> applications tracked
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <FileText className="w-3.5 h-3.5 text-[#1a6682]" />
           <span className="text-slate-700 font-medium text-xs">
-            CV score: <strong className="text-slate-900 font-bold font-mono tabular-nums">{cvScore}</strong> / 100
+            CV score: <strong className="text-slate-900 font-bold font-mono tabular-nums">{cvScore === null ? 'Not analyzed' : cvScore}</strong>{cvScore === null ? '' : ' / 100'}
           </span>
         </div>
 
@@ -1061,6 +952,9 @@ Generate:
 
             {/* List */}
             <div className="space-y-3">
+              {isSearchingOpportunities && <p className="py-6 text-center text-sm text-slate-500">Searching live sources through Sylvia…</p>}
+              {opportunitySearchError && !isSearchingOpportunities && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{opportunitySearchError}</p>}
+              {!isSearchingOpportunities && !opportunitySearchError && filteredInternships.length === 0 && <p className="py-6 text-center text-sm text-slate-500">No source-linked opportunities returned. Try a different search.</p>}
               {filteredInternships.map(internship => (
                 <div
                   key={internship.id}
@@ -1069,12 +963,10 @@ Generate:
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-sm text-slate-900">{internship.title}</h4>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1a6682]/10 text-[#1a6682]">
-                        {internship.matchRate}% Match
-                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{internship.verificationStatus || 'search_result_only'}</span>
                     </div>
                     <p className="text-xs text-slate-600 font-medium">
-                      {internship.company} · {internship.location} · {internship.stipend}
+                      {internship.company} · {internship.location} · {internship.stipend}{internship.deadline ? ' · Deadline: ' + internship.deadline : ''}
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {internship.tags.map(tag => (
@@ -1089,12 +981,7 @@ Generate:
                   </div>
 
                   <div className="flex sm:flex-col gap-2 shrink-0">
-                    <button
-                      onClick={() => handleQuickApplyFromModal(internship)}
-                      className="px-4 py-2 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold shadow-xs"
-                    >
-                      Quick Apply
-                    </button>
+                    <a href={internship.applicationUrl || internship.sourceUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-[#1a6682] hover:bg-[#15546b] text-white rounded-xl text-xs font-semibold shadow-xs text-center">View source</a>
                     <button
                       onClick={() => setShowInternshipsModal(false)}
                       className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold"
@@ -1138,7 +1025,7 @@ Generate:
                   ATS Readiness Score
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-[#1a6682]">{cvScore}</span>
+                  <span className="text-3xl font-extrabold text-[#1a6682]">{cvScore === null ? "—" : cvScore}</span>
                   <span className="text-sm font-semibold text-slate-500">/ 100</span>
                 </div>
                 <p className="text-xs text-emerald-700 font-medium mt-1">
@@ -1205,6 +1092,9 @@ Generate:
               </button>
             </div>
 
+            {isSearchingCourses && <p className="py-6 text-center text-sm text-slate-500">Searching live course sources through Sylvia…</p>}
+            {courseSearchError && !isSearchingCourses && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{courseSearchError}</p>}
+            {!isSearchingCourses && !courseSearchError && courses.length === 0 && !selectedCourse && <p className="py-6 text-center text-sm text-slate-500">No source-linked courses returned.</p>}
             {selectedCourse ? (
               <div className="space-y-4">
                 <button
@@ -1236,24 +1126,8 @@ Generate:
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => {
-                      setCourses(prev =>
-                        prev.map(c =>
-                          c.id === selectedCourse.id
-                            ? { ...c, enrolled: true, progress: Math.min(100, c.progress + 25) }
-                            : c
-                        )
-                      );
-                      setSelectedCourse(prev =>
-                        prev ? { ...prev, enrolled: true, progress: Math.min(100, prev.progress + 25) } : null
-                      );
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold"
-                  >
-                    {selectedCourse.progress > 0 ? 'Continue Lesson (+25%)' : 'Enroll & Start Course'}
-                  </button>
+                <div className="flex justify-end">
+                  {selectedCourse.url && <a href={selectedCourse.url} target="_blank" rel="noreferrer" className="px-5 py-2.5 rounded-xl bg-[#1a6682] hover:bg-[#15546b] text-white text-xs font-semibold">Open course source</a>}
                 </div>
               </div>
             ) : (
@@ -1314,7 +1188,7 @@ Generate:
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Spotify, Figma, Takealot..."
+                  placeholder="Company or organisation"
                   value={newCompany}
                   onChange={e => setNewCompany(e.target.value)}
                   className="w-full p-2.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#1a6682]"
@@ -1391,6 +1265,8 @@ Generate:
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {skillAnalysisText && <div className="rounded-2xl border border-[#d2e4f0] bg-[#f4f9fc] p-4 text-xs text-slate-700 whitespace-pre-wrap">{skillAnalysisText}</div>}
 
             {/* Role benchmarks switcher & re-analyze trigger */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -1528,7 +1404,7 @@ Generate:
                 <p className="text-sky-800 mt-0.5 leading-relaxed">
                   Closing the <strong>Data & Metrics (-12%)</strong> and{' '}
                   <strong>User Research (-2%)</strong> gaps will boost your match score for top-tier{' '}
-                  {ROLE_BENCHMARKS.find(r => r.id === targetRoleId)?.roleName} internships from 82% to 94%.
+                  {ROLE_BENCHMARKS.find(r => r.id === targetRoleId)?.roleName} internships by using evidence from your CV and a live skill-gap review.
                 </p>
               </div>
             </div>

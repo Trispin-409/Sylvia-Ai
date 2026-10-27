@@ -35,6 +35,7 @@ interface SidebarProps {
   pendingApprovalCount?: number;
   unreadGmailCount?: number;
   onNewConversation?: () => void;
+  compactWorkspaceOnly?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   unreadGmailCount = 0,
   onNewConversation,
   onClose,
+  compactWorkspaceOnly = false,
 }) => {
   const changeView = setActiveView ?? onSelectView ?? (() => undefined);
   const pendingCount = pendingApprovalsCount ?? pendingApprovalCount ?? 0;
@@ -80,273 +82,298 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Primary Action Button */}
-      <div className="p-3">
-        <button
-          id="btn-new-conversation"
-          onClick={startNewConversation}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-all shadow-sm group"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
-          <span>New Session</span>
-        </button>
-      </div>
+      {!compactWorkspaceOnly && (
+        <div className="p-3">
+          <button
+            id="btn-new-conversation"
+            onClick={startNewConversation}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-xs font-medium transition-all shadow-sm group"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
+            <span>New Session</span>
+          </button>
+        </div>
+      )}
 
       {/* Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-3 py-1 space-y-5 text-xs">
-        {/* COMMAND */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            COMMAND
-          </div>
-          <div className="space-y-0.5">
+      {compactWorkspaceOnly ? (
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 text-xs">
+          <div className="px-2 mb-2 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">WORKSPACE</div>
+          {([
+            { view: 'workspace-gmail' as NavView, label: 'Email', icon: <Mail className="w-4 h-4 text-rose-400" /> },
+            { view: 'workspace-calendar' as NavView, label: 'Calendar', icon: <CalendarIcon className="w-4 h-4 text-sky-400" /> },
+            { view: 'career' as NavView, label: 'Career Bridge', icon: <Briefcase className="w-4 h-4 text-emerald-300" /> },
+          ]).map(item => (
             <button
-              id="nav-chat"
-              onClick={() => changeView('chat')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'chat'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
+              key={item.view}
+              id={`nav-${item.view}`}
+              onClick={() => changeView(item.view)}
+              className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-xl transition-colors text-left ${activeView === item.view ? 'bg-emerald-900/40 text-emerald-100 border border-emerald-500/30 font-medium' : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'}`}
             >
-              <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-indigo-400" />
-                <span>Console Stream</span>
-              </div>
-              {pendingCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/30 text-amber-300 border border-amber-500/50 animate-pulse">
-                  {pendingCount}
-                </span>
-              )}
+              {item.icon}
+              <span>{item.label}</span>
+              {item.view === 'workspace-gmail' && unreadGmailCount > 0 && <span className="ml-auto text-[10px] font-mono-code text-rose-300/80">{unreadGmailCount} unread</span>}
             </button>
-
-            <button
-              id="nav-specialists-map"
-              onClick={() => changeView('specialists')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'specialists'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Network className="w-4 h-4 text-cyan-400" />
-                <span>Specialist Constellation</span>
-              </div>
-              
-            </button>
-          </div>
+          ))}
         </div>
-
-        {/* MISSIONS */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            MISSIONS
-          </div>
-          <div className="space-y-0.5">
-            <button
-              id="nav-mission-control"
-              onClick={() => changeView('mission-control')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'mission-control'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Target className="w-4 h-4 text-amber-400" />
-                <span>Mission Control</span>
-              </div>
-              
-            </button>
-
-            <button
-              id="nav-missions-list"
-              onClick={() => changeView('missions')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'missions'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <History className="w-4 h-4 text-slate-400" />
-                <span>Mission Ledger</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* CAREER BRIDGE */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            CAREER & WORK READINESS
-          </div>
-          <div className="space-y-0.5">
-            <button
-              id="nav-career-bridge"
-              onClick={() => changeView('career')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'career'
-                  ? 'bg-emerald-900/40 text-emerald-100 border border-emerald-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Briefcase className="w-4 h-4 text-emerald-300" />
-                <span>Career Bridge</span>
-              </div>
-              <span className="text-[9px] font-mono-code text-emerald-300/80">FNB</span>
-            </button>
-          </div>
-        </div>
-
-        {/* MEMORY & DECISION DNA */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            MEMORY & IDENTITY
-          </div>
-          <div className="space-y-0.5">
-            <button
-              id="nav-decision-dna"
-              onClick={() => changeView('memory')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'memory'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Dna className="w-4 h-4 text-purple-400" />
-                <span>Decision DNA</span>
-              </div>
-              
-            </button>
-          </div>
-        </div>
-
-        {/* SPECIALIST DIRECTORY */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            SPECIALIST FLEET
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
-              <div className="flex items-center gap-2">
-                <Brain className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Context Analyst</span>
-              </div>
-              <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-3 py-1 space-y-5 text-xs">
+          {/* COMMAND */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              COMMAND
             </div>
-
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
-              <div className="flex items-center gap-2">
-                <Scale className="w-3.5 h-3.5 text-purple-400" />
-                <span>Decision Partner</span>
-              </div>
-              <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
-            </div>
-
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
-              <div className="flex items-center gap-2">
-                <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Action Planner</span>
-              </div>
-              <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
-            </div>
-
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
-                <span>Workspace Specialist</span>
-              </div>
-              <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
-            </div>
-
-            {/* Coming next agents - Not faked */}
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-400 opacity-60">
-              <div className="flex items-center gap-2">
-                <Code className="w-3.5 h-3.5 text-slate-400" />
-                <span>Coding Agent</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono-code">Coming next</span>
-            </div>
-
-            <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-400 opacity-60">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                <span>Career Agent</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono-code">Coming next</span>
+            <div className="space-y-0.5">
+              <button
+                id="nav-chat"
+                onClick={() => changeView('chat')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'chat'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <MessageSquare className="w-4 h-4 text-indigo-400" />
+                  <span>Console Stream</span>
+                </div>
+                {pendingCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-amber-500/30 text-amber-300 border border-amber-500/50 animate-pulse">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+  
+              <button
+                id="nav-specialists-map"
+                onClick={() => changeView('specialists')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'specialists'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Network className="w-4 h-4 text-cyan-400" />
+                  <span>Specialist Constellation</span>
+                </div>
+                
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* WORKSPACE */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            WORKSPACE INTEGRATION
+  
+          {/* MISSIONS */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              MISSIONS
+            </div>
+            <div className="space-y-0.5">
+              <button
+                id="nav-mission-control"
+                onClick={() => changeView('mission-control')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'mission-control'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Target className="w-4 h-4 text-amber-400" />
+                  <span>Mission Control</span>
+                </div>
+                
+              </button>
+  
+              <button
+                id="nav-missions-list"
+                onClick={() => changeView('missions')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'missions'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <History className="w-4 h-4 text-slate-400" />
+                  <span>Mission Ledger</span>
+                </div>
+              </button>
+            </div>
           </div>
-          <div className="space-y-0.5">
-            <button
-              id="nav-workspace-gmail"
-              onClick={() => changeView('workspace-gmail')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'workspace-gmail'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-rose-400" />
-                <span>Gmail Inbox</span>
+  
+          {/* CAREER BRIDGE */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              CAREER & WORK READINESS
+            </div>
+            <div className="space-y-0.5">
+              <button
+                id="nav-career-bridge"
+                onClick={() => changeView('career')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'career'
+                    ? 'bg-emerald-900/40 text-emerald-100 border border-emerald-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Briefcase className="w-4 h-4 text-emerald-300" />
+                  <span>Career Bridge</span>
+                </div>
+                <span className="text-[9px] font-mono-code text-emerald-300/80">FNB</span>
+              </button>
+            </div>
+          </div>
+  
+          {/* MEMORY & DECISION DNA */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              MEMORY & IDENTITY
+            </div>
+            <div className="space-y-0.5">
+              <button
+                id="nav-decision-dna"
+                onClick={() => changeView('memory')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'memory'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Dna className="w-4 h-4 text-purple-400" />
+                  <span>Decision DNA</span>
+                </div>
+                
+              </button>
+            </div>
+          </div>
+  
+          {/* SPECIALIST DIRECTORY */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              SPECIALIST FLEET
+            </div>
+            <div className="space-y-0.5">
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Context Analyst</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
               </div>
-              {unreadGmailCount > 0 && <span className="text-[10px] font-mono-code text-rose-300/80">{unreadGmailCount} Unread</span>}
-            </button>
-
-            <button
-              id="nav-workspace-calendar"
-              onClick={() => changeView('workspace-calendar')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'workspace-calendar'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <CalendarIcon className="w-4 h-4 text-sky-400" />
-                <span>Calendar Schedule</span>
+  
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Scale className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Decision Partner</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
               </div>
-              
-            </button>
+  
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Action Planner</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
+              </div>
+  
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Workspace Specialist</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-mono-code">Online</span>
+              </div>
+  
+              {/* Coming next agents - Not faked */}
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-400 opacity-60">
+                <div className="flex items-center gap-2">
+                  <Code className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Coding Agent</span>
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono-code">Coming next</span>
+              </div>
+  
+              <div className="px-2.5 py-1.5 flex items-center justify-between text-slate-400 opacity-60">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Career Agent</span>
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono-code">Coming next</span>
+              </div>
+            </div>
+          </div>
+  
+          {/* WORKSPACE */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              WORKSPACE INTEGRATION
+            </div>
+            <div className="space-y-0.5">
+              <button
+                id="nav-workspace-gmail"
+                onClick={() => changeView('workspace-gmail')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'workspace-gmail'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-rose-400" />
+                  <span>Gmail Inbox</span>
+                </div>
+                {unreadGmailCount > 0 && <span className="text-[10px] font-mono-code text-rose-300/80">{unreadGmailCount} Unread</span>}
+              </button>
+  
+              <button
+                id="nav-workspace-calendar"
+                onClick={() => changeView('workspace-calendar')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'workspace-calendar'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <CalendarIcon className="w-4 h-4 text-sky-400" />
+                  <span>Calendar Schedule</span>
+                </div>
+                
+              </button>
+            </div>
+          </div>
+  
+          {/* SYSTEM */}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
+              SYSTEM & TELEMETRY
+            </div>
+            <div className="space-y-0.5">
+              <button
+                id="nav-activity-feed"
+                onClick={() => changeView('activity')}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
+                  activeView === 'activity'
+                    ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
+                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <span>Activity Feed</span>
+                </div>
+                
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* SYSTEM */}
-        <div>
-          <div className="px-2 mb-1.5 text-[10px] font-mono-code font-semibold tracking-wider text-slate-400 uppercase">
-            SYSTEM & TELEMETRY
-          </div>
-          <div className="space-y-0.5">
-            <button
-              id="nav-activity-feed"
-              onClick={() => changeView('activity')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left ${
-                activeView === 'activity'
-                  ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30 font-medium'
-                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Activity className="w-4 h-4 text-emerald-400" />
-                <span>Activity Feed</span>
-              </div>
-              
-            </button>
-          </div>
-        </div>
-      </div>
-
+  
+  
+      )}
+      
       {/* Bottom Health & Diagnostics Banner */}
       <div className="p-3 border-t border-slate-800/60 bg-slate-950/40">
         <button
