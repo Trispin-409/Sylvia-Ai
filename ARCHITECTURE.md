@@ -119,6 +119,16 @@ No email is sent by the draft action.
 
 The frontend treats `/api/health` as a lightweight service-level probe. Detailed Workspace authentication and capability information comes from real backend Workspace/tool evidence rather than hard-coded UI assumptions.
 
+## Live ADK events and Companion activity
+
+The gateway preserves Server-Sent Events when the browser requests A2A `message/stream`; it must not buffer that response with `response.text()`. The frontend consumes observed A2A events and can update Companion state plus the activity feed when a tool call, tool result, or task status is received.
+
+The frontend first attempts A2A streaming. When the ADK endpoint explicitly reports that streaming is unsupported, it falls back to the existing `message/send` request so normal chat and existing approval handling remain available. A fallback event is reported in the activity log; the UI must not label a run as live-streaming unless the deployed backend actually streams events.
+
+**Backend requirement:** the deployed ADK A2A AgentCard must advertise streaming support and the endpoint must implement `message/stream`. Google ADK versions that default to a non-streaming AgentCard can reject this method. This requires a small change in the Python ADK service entry point/deployment configuration; it cannot be enabled just by changing the React UI. Once enabled, verify actual tool-call and tool-response events in the running Companion.
+
+The activity display is based on protocol events, not a pre-timed demo animation. The existing specialist graph demo remains explicitly visual-only and must not be used as evidence that an external tool ran.
+
 ## Trust Model
 
 Sylvia follows this execution rule:

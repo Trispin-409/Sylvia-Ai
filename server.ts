@@ -99,23 +99,63 @@ const handleA2AProxy = async (req: express.Request, res: express.Response) => {
   const targetUrl = `${LIVE_ADK_BACKEND}/a2a/app`;
   console.log(`[Sylvia A2A Gateway] ${req.method} ${req.path} -> ${targetUrl}`);
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180000);
+  const abortOnDisconnect = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.on('close', abortOnDisconnect);
 
+  try {
+    const accept = String(req.headers.accept || '');
+    const wantsStream = req.body?.method === 'message/stream' || accept.includes('text/event-stream');
     const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        Accept: wantsStream ? 'text/event-stream, application/json' : 'application/json',
       },
       body: JSON.stringify(req.body),
       signal: controller.signal,
     });
 
-    clearTimeout(timeout);
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream')) {
+      // Preserve the ADK Server-Sent Events stream. Do not call response.text(),
+      // as that buffers the entire run and prevents the UI from showing live tool calls.
+      res.status(response.status);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        clearTimeout(timeout);
+        return res.end();
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) res.write(Buffer.from(value));
+        }
+      } catch (streamError: unknown) {
+        const message = streamError instanceof Error ? streamError.message : String(streamError);
+        console.error('[Sylvia A2A Gateway] Stream interrupted:', message);
+        if (!res.headersSent) res.status(502);
+      } finally {
+        clearTimeout(timeout);
+        reader.releaseLock();
+        if (!res.writableEnded) res.end();
+      }
+      return;
+    }
 
     const responseText = await response.text();
+    clearTimeout(timeout);
     let responseData: unknown;
     try {
       responseData = JSON.parse(responseText);
@@ -133,6 +173,7 @@ const handleA2AProxy = async (req: express.Request, res: express.Response) => {
 
     return res.status(response.status).json(responseData);
   } catch (err: unknown) {
+    clearTimeout(timeout);
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error('[Sylvia A2A Gateway] Backend error:', errorMsg);
 
@@ -144,9 +185,10 @@ const handleA2AProxy = async (req: express.Request, res: express.Response) => {
         message: `Failed to reach live ADK Sylvia backend: ${errorMsg}`,
       },
     });
+  } finally {
+    res.off('close', abortOnDisconnect);
   }
 };
-
 app.post('/a2a/app', handleA2AProxy);
 app.post('/api/a2a/app', handleA2AProxy);
 
